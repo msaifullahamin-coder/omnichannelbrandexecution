@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Info, ArrowUpRight, ArrowDownRight, X, ArrowRight, Zap } from 'lucide-react';
-import { Target, Info, ArrowUpRight, ArrowDownRight, X, ArrowRight } from 'lucide-react';
 import { 
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Line 
 } from 'recharts';
 import { Card, Badge, ProgressBar } from './components';
 import { overviewStats, revenueData, funnelData, COLORS, formatRupiah } from './dummyData';
-import { overviewStats, revenueData, funnelData, COLORS } from './dummyData';
-
 export const DashboardPage = ({ phases, navigateToRoadmap }) => {
   const [showProgressModal, setShowProgressModal] = useState(false);
 
