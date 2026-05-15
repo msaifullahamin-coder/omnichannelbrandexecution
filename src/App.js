@@ -187,7 +187,7 @@ export default function App() {
       case 'dashboard': 
         return <DashboardPage phases={enrichedPhases} navigateToRoadmap={navigateToRoadmap} />;
       case 'calendar': 
-        return <CalendarPage tasks={enrichedTasks} pdcaIterations={activeProject.pdcaIterations || []} navigateToTaskBoard={navigateToTaskBoard} navigateToPdca={navigateToPdca} />;
+        return <CalendarPage tasks={enrichedTasks} pdcaIterations={activeProject.pdcaIterations || []} navigateToTaskBoard={navigateToTaskBoard} navigateToPdca={navigateToPdca} currentUser={loggedInUser} />;
       case 'roadmap': 
         return <RoadmapPage users={users} tasks={enrichedTasks} setTasks={(val) => updateActiveProjectData('tasks', val)} phases={enrichedPhases} setPhases={(val) => updateActiveProjectData('phases', val)} highlightPhaseName={highlightPhaseName} setHighlightPhaseName={setHighlightPhaseName} setHighlightTaskId={setHighlightTaskId} setActiveTab={setActiveTab} />;
       case 'brand': 
@@ -246,21 +246,33 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        {/* === HEADER YANG SUDAH DIPERBAIKI (FOTO & NAMA MUNCUL) === */}
         <header className="h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 z-30">
            <div className="flex items-center gap-4">
               <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300 lg:hidden"><Menu size={24} /></button>
               
-              {/* TULISAN HEADER YANG SUDAH DIPERBAIKI */}
               <h1 className="text-sm sm:text-lg font-bold text-slate-800 dark:text-zinc-200 hidden sm:block">
                 {headerTitle}
               </h1>
-
            </div>
-           <div className="flex items-center gap-2 sm:gap-4">
-              <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full">
-                <img src={loggedInUser.avatar} className="w-8 h-8 rounded-full border border-slate-200 dark:border-zinc-700 sm:hidden" alt="Profile" /> 
-                {darkMode ? <Sun size={20} className="hidden sm:block" /> : <Moon size={20} className="hidden sm:block" />}
+           
+           <div className="flex items-center gap-3 sm:gap-5">
+              {/* Tombol Dark Mode */}
+              <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-500 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
+              
+              {/* Garis Pembatas (Hanya muncul di laptop) */}
+              <div className="w-px h-6 bg-slate-200 dark:bg-zinc-700 hidden sm:block"></div>
+              
+              {/* Info User & Foto Profil */}
+              <div className="flex items-center gap-3">
+                <img src={loggedInUser.avatar} className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm object-cover bg-slate-100" alt="Profile" />
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300 hidden sm:block capitalize">
+                  {loggedInUser.username}
+                </span>
+              </div>
            </div>
         </header>
 

@@ -2,40 +2,78 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
-  Tag, Target, RefreshCcw, CheckCircle2, AlertCircle, Clock3
+  Tag, Target, RefreshCcw, CheckCircle2, AlertCircle, Clock3, Flame, Lock, Unlock
 } from 'lucide-react';
 
-export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBoard, navigateToPdca }) => {
+export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBoard, navigateToPdca, currentUser }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // === MENGOLAH DATA ASLI (TASKS & PDCA) MENJADI EVENT KALENDER ===
+  const formatDateString = (year, month, day) => {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const today = new Date();
+  const todayStr = formatDateString(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // === FUNGSI SAKTI: Memperbaiki format tanggal yang rusak dari Database ===
+  const normalizeDate = (rawDate) => {
+    if (!rawDate) return todayStr; // Kalau kosong, lempar ke Hari Ini
+    try {
+      const d = new Date(rawDate);
+      if (isNaN(d.getTime())) return todayStr;
+      return formatDateString(d.getFullYear(), d.getMonth(), d.getDate());
+    } catch(e) {
+      return todayStr;
+    }
+  };
+
+  // === MENGOLAH DATA (FILTER SUPER KETAT & ANTI-TYPO) ===
   const events = useMemo(() => {
     const calendarEvents = [];
-    const today = new Date();
+    const isAdmin = currentUser?.role === 'admin';
+    const currentUsername = currentUser?.username?.toLowerCase() || '';
 
     // 1. Memasukkan Data Tasks
     tasks.forEach(task => {
-      // Perbaikan deteksi warna status (Mencakup 'Doing' dan 'In Progress')
+      // 🔒 FITUR PRIVASI: Cari nama user di semua laci kemungkinan
+      if (!isAdmin) {
+        let assignedNames = [];
+        if (task.assignee) assignedNames.push(task.assignee.toLowerCase());
+        if (Array.isArray(task.assignees)) assignedNames.push(...task.assignees.map(a => a?.toLowerCase()));
+        if (Array.isArray(task.members)) assignedNames.push(...task.members.map(m => m?.toLowerCase()));
+
+        // Jika nama dia tidak ada di daftar, Sembunyikan!
+        if (!assignedNames.includes(currentUsername)) return; 
+      }
+
       let color = 'bg-slate-500';
       let icon = Target;
+      let category = `TASK: ${(task.status || 'TODO').toUpperCase()}`;
       const statusLokal = (task.status || '').toLowerCase();
+      const isDone = statusLokal.includes('done');
       
-      if (statusLokal.includes('done')) { color = 'bg-emerald-500'; icon = CheckCircle2; }
+      if (isDone) { color = 'bg-emerald-500'; icon = CheckCircle2; }
       else if (statusLokal.includes('progress') || statusLokal.includes('doing')) { color = 'bg-blue-500'; icon = Clock3; }
       else if (statusLokal.includes('review')) { color = 'bg-purple-500'; icon = AlertCircle; }
       else if (statusLokal.includes('todo') || statusLokal.includes('to do')) { color = 'bg-amber-500'; icon = Target; }
 
-      let eventDate = task.dueDate; 
-      if (!eventDate) {
-         eventDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`;
+      // Normalisasi Tanggal (Biar nggak gaib)
+      let eventDate = normalizeDate(task.dueDate);
+
+      // 🔥 Sistem Task Nunggak (Overdue) 🔥
+      if (!isDone && eventDate < todayStr) {
+        eventDate = todayStr; 
+        color = 'bg-rose-600'; 
+        category = `🚨 NUNGGAK (${(task.status || 'TODO').toUpperCase()})`; 
+        icon = Flame; 
       }
 
       calendarEvents.push({
-        id: `task-${task.id}`, // ID ini dipakai buat teleportasi
+        id: `task-${task.id}`,
         title: task.title,
         date: eventDate,
-        category: `TASK: ${(task.status || 'TODO').toUpperCase()}`,
+        category: category,
         color: color,
         icon: icon
       });
@@ -43,10 +81,25 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
 
     // 2. Memasukkan Data PDCA
     pdcaIterations.forEach(pdca => {
+      // 🔒 FITUR PRIVASI PDCA
+      if (!isAdmin) {
+        const hasTaskInPdca = tasks.some(t => {
+           let assignedNames = [];
+           if (t.assignee) assignedNames.push(t.assignee.toLowerCase());
+           if (Array.isArray(t.assignees)) assignedNames.push(...t.assignees.map(a => a?.toLowerCase()));
+           return (pdca.tasks || []).includes(t.id) && assignedNames.includes(currentUsername);
+        });
+        const isLead = pdca.lead?.toLowerCase() === currentUsername || pdca.owner?.toLowerCase() === currentUsername;
+        
+        if (!hasTaskInPdca && !isLead) return; 
+      }
+
+      let pdcaDate = normalizeDate(pdca.date || pdca.dueDate);
+      
       calendarEvents.push({
-        id: `pdca-${pdca.id}`, // ID ini dipakai buat teleportasi
+        id: `pdca-${pdca.id}`,
         title: `PDCA: ${pdca.objective}`,
-        date: pdca.date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`,
+        date: pdcaDate,
         category: 'PDCA ITERATION',
         color: 'bg-indigo-600',
         icon: RefreshCcw
@@ -54,37 +107,24 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
     });
 
     return calendarEvents;
-  }, [tasks, pdcaIterations]);
+  }, [tasks, pdcaIterations, currentUser, todayStr]);
 
-  // === FUNGSI TELEPORTASI KLIK EVENT ===
   const handleEventClick = (eventId) => {
     if (!eventId) return;
-    
-    // Kalau yang diklik adalah Task, pindah ke Kanban Board
     if (eventId.startsWith('task-') && navigateToTaskBoard) {
-      const taskId = eventId.replace('task-', '');
-      navigateToTaskBoard(taskId);
-    } 
-    // Kalau yang diklik adalah PDCA, pindah ke halaman PDCA
-    else if (eventId.startsWith('pdca-') && navigateToPdca) {
-      const pdcaId = eventId.replace('pdca-', '');
-      navigateToPdca(pdcaId);
+      navigateToTaskBoard(eventId.replace('task-', ''));
+    } else if (eventId.startsWith('pdca-') && navigateToPdca) {
+      navigateToPdca(eventId.replace('pdca-', ''));
     }
   };
 
-  // === LOGIKA KALENDER ===
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  
   const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
   const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-
-  const formatDateString = (year, month, day) => {
-    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  };
 
   const getEventsForDate = (day) => {
     const dateStr = formatDateString(currentDate.getFullYear(), currentDate.getMonth(), day);
@@ -101,7 +141,13 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
           <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarIcon className="text-indigo-500" /> Master Calendar
           </h2>
-          <p className="text-slate-500 mt-1 text-sm">Otomatis sinkron. Klik event di Agenda Harian untuk melihat detail.</p>
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-zinc-800 text-xs font-bold text-slate-600 dark:text-slate-300">
+            {currentUser?.role === 'admin' ? (
+              <><Unlock size={12} className="text-emerald-500"/> Mode Admin: Melihat semua jadwal tim.</>
+            ) : (
+              <><Lock size={12} className="text-amber-500"/> Mode Personal: Hanya melihat jadwal tugas Anda.</>
+            )}
+          </div>
         </div>
       </div>
 
@@ -144,6 +190,7 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
                   onClick={() => setSelectedDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))}
                   className={`min-h-[80px] md:min-h-[100px] p-2 rounded-xl border cursor-pointer transition-colors relative flex flex-col gap-1
                     ${isSelected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700'}
+                    ${isToday && dayEvents.some(e => e.color === 'bg-rose-600') ? 'border-rose-300 dark:border-rose-900/50' : ''}
                   `}
                 >
                   <span className={`text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-400'}`}>
@@ -176,7 +223,7 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
             {selectedEvents.length === 0 ? (
               <div className="text-center py-10 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900">
                 <p className="text-slate-400 text-sm font-medium">Kosong.</p>
-                <p className="text-xs text-slate-400 mt-1">Tidak ada Task atau PDCA di tanggal ini.</p>
+                <p className="text-xs text-slate-400 mt-1">Tidak ada jadwal di tanggal ini.</p>
               </div>
             ) : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
@@ -213,10 +260,9 @@ export const CalendarPage = ({ tasks = [], pdcaIterations = [], navigateToTaskBo
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Indikator Status</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">To Do</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">In Progress / Doing</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-purple-500"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">Review</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">Doing</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-rose-600"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">Overdue (Nunggak)</span></div>
               <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">Done</span></div>
-              <div className="flex items-center gap-2 col-span-2 mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800"><div className="w-3 h-3 rounded-full bg-indigo-600"></div><span className="text-xs font-bold text-slate-600 dark:text-slate-300">Siklus PDCA</span></div>
             </div>
           </div>
         </div>
