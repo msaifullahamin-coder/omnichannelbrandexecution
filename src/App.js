@@ -187,7 +187,7 @@ export default function App() {
       case 'dashboard': 
         return <DashboardPage phases={enrichedPhases} navigateToRoadmap={navigateToRoadmap} />;
       case 'calendar': 
-        return <CalendarPage />;
+        return <CalendarPage tasks={enrichedTasks} pdcaIterations={activeProject.pdcaIterations || []} navigateToTaskBoard={navigateToTaskBoard} navigateToPdca={navigateToPdca} />;
       case 'roadmap': 
         return <RoadmapPage users={users} tasks={enrichedTasks} setTasks={(val) => updateActiveProjectData('tasks', val)} phases={enrichedPhases} setPhases={(val) => updateActiveProjectData('phases', val)} highlightPhaseName={highlightPhaseName} setHighlightPhaseName={setHighlightPhaseName} setHighlightTaskId={setHighlightTaskId} setActiveTab={setActiveTab} />;
       case 'brand': 
