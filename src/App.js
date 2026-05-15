@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CalendarPage } from './CalendarPage';
 import { 
   LayoutDashboard, Map, KanbanSquare, RefreshCcw, Bot, Wallet, 
-  Link2, Menu, Sun, Moon, Palette, ArrowLeft, Megaphone 
+  Link2, Menu, Sun, Moon, Palette, ArrowLeft, Megaphone, Calendar 
 } from 'lucide-react';
 
 // --- IMPORT DATA ---
@@ -51,7 +52,7 @@ export default function App() {
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   // === STATE JEMBATAN ANTAR HALAMAN (INI YANG BIKIN BLANK KALAU DIHAPUS) ===
   const [highlightPhaseName, setHighlightPhaseName] = useState(null);
   const [highlightTaskId, setHighlightTaskId] = useState(null);
@@ -128,6 +129,7 @@ export default function App() {
   // === DAFTAR MENU SIDEBAR ===
   const NAVIGATION = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'calendar', label: 'Master Calendar', icon: Calendar },
     { id: 'roadmap', label: 'Project Roadmap', icon: Map },
     { id: 'brand', label: 'Brand Identity', icon: Palette },
     { id: 'persona', label: 'Target Persona', icon: Bot },
@@ -184,6 +186,8 @@ export default function App() {
     switch (activeTab) {
       case 'dashboard': 
         return <DashboardPage phases={enrichedPhases} navigateToRoadmap={navigateToRoadmap} />;
+      case 'calendar': 
+        return <CalendarPage />;
       case 'roadmap': 
         return <RoadmapPage users={users} tasks={enrichedTasks} setTasks={(val) => updateActiveProjectData('tasks', val)} phases={enrichedPhases} setPhases={(val) => updateActiveProjectData('phases', val)} highlightPhaseName={highlightPhaseName} setHighlightPhaseName={setHighlightPhaseName} setHighlightTaskId={setHighlightTaskId} setActiveTab={setActiveTab} />;
       case 'brand': 
