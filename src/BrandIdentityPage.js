@@ -1,317 +1,266 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Palette, Box, Droplet, Type, Image as ImageIcon, 
-  Upload, Download, Check, Database, LayoutTemplate, 
-  Smile, HeartHandshake, Globe, Users, UserCircle, Plus, X,
-  Sparkles, Wand2, Loader2, ArrowRight
+  Box, Droplet, Type, Image as ImageIcon, 
+  Database, LayoutTemplate, Smile, HeartHandshake, Globe, Users, UserCircle,
+  Sparkles, Loader2, FileText, ArrowRight, CheckCircle, Download,
+  Save, FolderOpen, Trash2, Link2, Edit3, Compass
 } from 'lucide-react';
 
 export const BrandIdentityPage = () => {
-  const [activeTab, setActiveTab] = useState('prism');
-  const [isImporting, setIsImporting] = useState(false);
-  const [importSuccess, setImportSuccess] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [savedProjects, setSavedProjects] = useState([]);
+  const [availablePersonas, setAvailablePersonas] = useState([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState('');
 
-  // === STATE DATA SUNGGUHAN ===
+  useEffect(() => {
+    const localBrandData = localStorage.getItem('saas_brand_projects');
+    if (localBrandData) setSavedProjects(JSON.parse(localBrandData));
+    const localPersonaData = localStorage.getItem('saas_persona_projects');
+    if (localPersonaData) setAvailablePersonas(JSON.parse(localPersonaData));
+  }, []);
+
+  const [projectContext, setProjectContext] = useState({ industry: '', description: '' });
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  
+  const [brandNamingOptions, setBrandNamingOptions] = useState([]);
+  const [selectedName, setSelectedName] = useState('');
+  const [customName, setCustomName] = useState('');
+
   const [brandData, setBrandData] = useState({
-    prism: {
-      physique: 'Desain cover modern dengan variasi warna elegan (merah, hijau, biru, hitam), kertas HVS putih bersih yang kontras, dan ukuran A5 yang sangat praktis untuk mobilitas tinggi.',
-      personality: 'Memotivasi, edukatif, praktis, dan suportif. Bertindak layaknya "mentor spiritual" yang mudah dipahami (relatable) dan tidak menggurui.',
-      relationship: 'Membangun kemitraan dalam perjalanan spiritual (self-improvement) individu. Memberikan rasa aman dari kecemasan melakukan kesalahan fatal (lahn jali) saat membaca Al-Qur\'an.',
-      culture: 'Nilai keseimbangan antara kehidupan material dan spiritual. Menjunjung tinggi konsep pembelajaran berkelanjutan (lifelong learning) dan adaptasi progresif.',
-      reflection: 'Individu dewasa yang melek teknologi, sibuk berkarir, namun mencari efisiensi (just-in-time learning) untuk memperbaiki tajwid secara mandiri di sela waktu kerja.',
-      selfImage: '"Saya adalah \'Muslim Progresif\' yang mampu memperbaiki kualitas ibadah secara mandiri di tengah kesibukan profesional saya."'
-    },
-    logo: { 
-      primary: 'Logomark diposisikan di atas (center-aligned) dengan Logotype "AQSHOR" di bawahnya. Menggunakan font Serif yang bersih dan elegan (huruf kapital semua) dengan kerning longgar untuk kesan premium. Di bawahnya terdapat tagline kecil "Tajwid Triple Kode".', 
-      secondary: 'Logomark berada di sebelah kiri, disusul dengan Logotype "AQSHOR" di sebelah kanan. Digunakan untuk header website, spanduk marketplace, atau banner toko TikTok/Shopee yang ruang vertikalnya terbatas.', 
-      favicon: 'Penggabungan abstrak bentuk "Buku Terbuka" dan huruf "A". Ujung garis melengkung halus (rounded) melambangkan inklusivitas dan edukasi ramah. Identitas kuat untuk profile picture.' 
-    },
-    colors: [
-      { id: 1, name: 'Aqshor Navy', hex: '#1B305A', desc: 'Biru gelap yang elegan. Melambangkan kedalaman ilmu, ketenangan ibadah, dan profesionalisme. Sangat cocok untuk teks utama dan logo.' },
-      { id: 2, name: 'Purity White', hex: '#FFFFFF', desc: 'Mewakili kertas HVS putih bersih. Memberikan negative space yang luas agar mata tidak cepat lelah saat melihat konten tajwid.' },
-      { id: 3, name: 'Emerald Green', hex: '#2E7D32', desc: 'Hijau elegan untuk aksen islami yang segar.' },
-      { id: 4, name: 'Ruby Red', hex: '#C62828', desc: 'Merah redup untuk penekanan pada fitur diskon atau urgency di promo marketplace.' },
-      { id: 5, name: 'Gold Sand', hex: '#D4AF37', desc: 'Emas matte untuk sentuhan premium pada elemen garis, ikon, atau pita pembatas buku.' }
-    ],
-    typography: {
-      heading: { font: 'Playfair Display / Lora', desc: 'Font Serif. Memiliki lekukan elegan dan sentuhan editorial klasik, cocok untuk kutipan ayat, judul konten edukasi, dan nama produk.' },
-      subheading: { font: 'Montserrat', desc: 'Font Sans-Serif (Medium/Semi-Bold). Geometris, modern, memberikan struktur rapi untuk memisahkan hierarki.' },
-      body: { font: 'Inter / Open Sans', desc: 'Font Sans-Serif (Regular). Keterbacaan layar sangat tinggi. Ideal untuk deskripsi panjang tanpa membuat mata lelah.' }
-    },
-    graphics: { 
-      photography: 'Aesthetic Prayer Corner: Latar interior rumah minimalis, cahaya alami matahari, properti sajadah estetik, sukulen, tasbih, teh.\n\nTeknik Makro: Foto close-up tajam menyoroti detail tekstur kertas dan tinta "Triple Kode".', 
-      iconography: 'Line-art minimalis dengan stroke konsisten (2px).\nIkon UVP: "Mata" (visual warna), "Bibir/Mic" (fonetik huruf), dan "Jam Pasir" (durasi simbol).', 
-      pattern: 'Garis lengkung geometris tipis disamarkan (opacity 5-10%) sebagai watermark. Hindari pola geometri Islam (Arabesque) yang terlalu padat agar tidak mengganggu informasi.' 
-    }
+    prism: { physique: '', personality: '', relationship: '', culture: '', reflection: '', selfImage: '' },
+    logo: { primary: '', secondary: '', favicon: '' },
+    colors: [],
+    typography: { heading: { font: '', desc: '' }, subheading: { font: '', desc: '' }, body: { font: '', desc: '' } },
+    graphics: { photography: '', iconography: '', pattern: '' }
   });
 
-  // === STATE KHUSUS AI VISUALIZER ===
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState([]);
+  const handleSubmitStep1 = async () => {
+    if (!projectContext.industry || !projectContext.description) {
+      return alert("Harap isi Kategori Bisnis dan Deskripsi Project!");
+    }
+    setIsAnalyzing(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('industry', projectContext.industry);
+      formData.append('description', projectContext.description);
+      
+      if (selectedPersonaId) {
+        const linkedPersona = availablePersonas.find(p => p.id === selectedPersonaId);
+        if (linkedPersona) formData.append('linkedPersonaData', JSON.stringify(linkedPersona.data));
+      }
 
-  // Fungsi meracik prompt dari data Brand
-  const handleAutoGeneratePrompt = () => {
-    const colorList = brandData.colors.map(c => c.name).join(', ');
-    const autoPrompt = `A highly aesthetic, photorealistic product photography moodboard. \n\nCore Vibe: ${brandData.prism.culture} The personality is ${brandData.prism.personality} \n\nColor Palette focus: ${colorList}. \n\nVisual Style: ${brandData.graphics.photography} \n\nAdditional elements: Minimalist, 8k resolution, cinematic natural lighting, extremely detailed texture, modern islamic design aesthetic.`;
-    setAiPrompt(autoPrompt);
+      if (selectedFiles.length === 0) {
+        formData.append('file_0', new File(["-"], "dummy.txt", { type: "text/plain" }));
+      } else {
+        selectedFiles.forEach((f, i) => formData.append(`file_${i}`, f));
+      }
+
+      const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook-test/api-brand-identity', {
+        method: 'POST',
+        body: formData
+      });
+
+      const rawText = await response.text();
+      let finalData = {};
+      
+      try {
+        let result = JSON.parse(rawText);
+        let extractedString = "";
+        
+        if (Array.isArray(result) && result[0]?.text) {
+            extractedString = result[0].text;
+        } else if (result.text) {
+            extractedString = result.text;
+        } else {
+            finalData = result; 
+        }
+
+        if (extractedString) {
+            let cleanStr = extractedString.replace(/```json/gi, '').replace(/```/g, '').trim();
+            finalData = JSON.parse(cleanStr);
+        }
+      } catch (e) {
+        console.error("Gagal bongkar paket:", e);
+        alert("Paket dari AI berantakan. Buka tab Console (Inspect) buat lihat isinya.");
+        setIsAnalyzing(false);
+        return;
+      }
+      
+      setBrandNamingOptions(finalData.naming_options || []);
+      setBrandData(finalData.brand_identity || finalData);
+      
+      setCurrentStep(2); 
+
+    } catch (error) {
+      console.error("Gagal konek:", error);
+      alert("Error menghubungi n8n.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  // Fungsi Simulasi Webhook ke n8n
-  const handleGenerateVisual = () => {
-    if (!aiPrompt) return;
-    setIsGenerating(true);
-    setGeneratedImages([]); // Kosongkan galeri sebelumnya
-
-    // Simulasi n8n memproses API Midjourney/DALL-E selama 3 detik
-    setTimeout(() => {
-      // Mockup hasil kembalian dari Webhook n8n
-      setGeneratedImages([
-        'https://images.unsplash.com/photo-1600431521340-491eca880813?w=600&q=80',
-        'https://images.unsplash.com/photo-1585036156171-384164a8c675?w=600&q=80',
-        'https://images.unsplash.com/photo-1519892300165-cb5548fc3781?w=600&q=80',
-        'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=600&q=80'
-      ]);
-      setIsGenerating(false);
-    }, 3500);
+  const handleSaveProject = () => {
+    const nameToSave = customName || selectedName || "Brand Tanpa Nama";
+    const newProject = {
+      id: Date.now().toString(),
+      name: nameToSave,
+      date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      context: projectContext,
+      brandName: nameToSave,
+      data: brandData,
+      linkedPersonaId: selectedPersonaId
+    };
+    const updated = [newProject, ...savedProjects];
+    setSavedProjects(updated);
+    localStorage.setItem('saas_brand_projects', JSON.stringify(updated));
+    alert("Mantap! Brand Identity Berhasil Disimpan!");
   };
 
-  // === FUNGSI TAMBAH / HAPUS WARNA ===
-  const handleAddColor = () => {
-    const newId = brandData.colors.length > 0 ? Math.max(...brandData.colors.map(c => c.id)) + 1 : 1;
-    setBrandData({ ...brandData, colors: [...brandData.colors, { id: newId, name: 'New Color', hex: '#CCCCCC', desc: '' }] });
-  };
-  const handleRemoveColor = (id) => {
-    setBrandData({ ...brandData, colors: brandData.colors.filter(c => c.id !== id) });
-  };
-
-  // === FUNGSI EXPORT / IMPORT CSV ===
+  // =========================================================================
+  // FUNGSI BARU: DOWNLOAD CSV SUPER PROMPT
+  // =========================================================================
   const handleDownloadCSV = () => {
-    const escapeCSV = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
-    const rawRows = [
-      ["KATEGORI", "NAMA ELEMEN", "VALUE (HEX/FONT/DSB)", "DESKRIPSI / KETENTUAN"],
-      ["PRISMA", "Physique (Fisik)", "-", brandData.prism.physique],
-      ["PRISMA", "Personality (Kepribadian)", "-", brandData.prism.personality],
-      ["PRISMA", "Relationship (Hubungan)", "-", brandData.prism.relationship],
-      ["PRISMA", "Culture (Budaya)", "-", brandData.prism.culture],
-      ["PRISMA", "Reflection (Refleksi)", "-", brandData.prism.reflection],
-      ["PRISMA", "Self-Image (Citra Diri)", "-", brandData.prism.selfImage],
-      ["LOGO", "Logo Utama (Primary)", "-", brandData.logo.primary],
-      ["LOGO", "Logo Sekunder (Horizontal)", "-", brandData.logo.secondary],
-      ["LOGO", "Ikon / Favicon", "-", brandData.logo.favicon],
-      ...brandData.colors.map(c => ["WARNA", c.name, c.hex, c.desc]),
-      ["TIPOGRAFI", "Heading", brandData.typography.heading.font, brandData.typography.heading.desc],
-      ["TIPOGRAFI", "Sub-Heading", brandData.typography.subheading.font, brandData.typography.subheading.desc],
-      ["TIPOGRAFI", "Body Text", brandData.typography.body.font, brandData.typography.body.desc],
-      ["GRAFIS TAMBAHAN", "Gaya Fotografi", "-", brandData.graphics.photography],
-      ["GRAFIS TAMBAHAN", "Ikonografi", "-", brandData.graphics.iconography],
-      ["GRAFIS TAMBAHAN", "Pola (Pattern)", "-", brandData.graphics.pattern]
-    ];
-    const csvString = "\uFEFF" + rawRows.map(row => row.map(escapeCSV).join(",")).join("\n");
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
+    const brand = customName || selectedName || "Brand_Tanpa_Nama";
+    const safeText = (text) => `"${(text || '').replace(/"/g, '""')}"`;
+
+    let csvContent = "Kategori,Elemen,Value\n";
+    
+    csvContent += `Identitas Utama,Nama Brand,${safeText(brand)}\n`;
+    
+    csvContent += `Brand Prism,Physique,${safeText(brandData.prism?.physique)}\n`;
+    csvContent += `Brand Prism,Personality,${safeText(brandData.prism?.personality)}\n`;
+    csvContent += `Brand Prism,Relationship,${safeText(brandData.prism?.relationship)}\n`;
+    csvContent += `Brand Prism,Culture,${safeText(brandData.prism?.culture)}\n`;
+    csvContent += `Brand Prism,Reflection,${safeText(brandData.prism?.reflection)}\n`;
+    csvContent += `Brand Prism,Self-Image,${safeText(brandData.prism?.selfImage)}\n`;
+
+    csvContent += `Logo,Primary,${safeText(brandData.logo?.primary)}\n`;
+    csvContent += `Logo,Secondary/Icon,${safeText(brandData.logo?.secondary || brandData.logo?.favicon)}\n`;
+
+    brandData.colors?.forEach((c, i) => {
+      csvContent += `Warna,Warna ${i+1} (${c.name}),${safeText(c.hex + " - " + c.desc)}\n`;
+    });
+
+    csvContent += `Tipografi,Heading,${safeText(brandData.typography?.heading?.font + " - " + brandData.typography?.heading?.desc)}\n`;
+    csvContent += `Tipografi,Sub-Heading,${safeText(brandData.typography?.subheading?.font + " - " + brandData.typography?.subheading?.desc)}\n`;
+    csvContent += `Tipografi,Body,${safeText(brandData.typography?.body?.font + " - " + brandData.typography?.body?.desc)}\n`;
+
+    csvContent += `Grafis,Gaya Fotografi,${safeText(brandData.graphics?.photography)}\n`;
+    csvContent += `Grafis,Ikonografi,${safeText(brandData.graphics?.iconography)}\n`;
+    csvContent += `Grafis,Pola (Pattern),${safeText(brandData.graphics?.pattern)}\n`;
+
+    // BONUS: Auto-Generated Prompt untuk Image Generator
+    const colorList = brandData.colors?.map(c => c.hex).join(', ') || '';
+    const photoStyle = brandData.graphics?.photography || 'aesthetic lighting';
+    
+    csvContent += `PROMPT GENERATOR,Banner Sosmed,${safeText(`Aesthetic social media promotional layout for ${brand}, featuring ${photoStyle}. Brand colors: ${colorList}. Minimalist, high-end, highly detailed, 8k`)}\n`;
+    csvContent += `PROMPT GENERATOR,Packaging/Produk,${safeText(`Premium product packaging design for ${brand}. Accented with brand colors: ${colorList}. Studio lighting, realistic 3d render, 8k`)}\n`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "Template_BrandIdentity.csv");
+    link.setAttribute("download", `VisualKit_${brand.replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  const handleImportCSV = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setIsImporting(true);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const csvText = event.target.result;
-      const parseCSVRow = (text) => {
-        const rows = []; let curRow = []; let curCell = ''; let inQuotes = false;
-        for (let i = 0; i < text.length; i++) {
-          const c = text[i];
-          if (c === '"' && text[i+1] === '"') { curCell += '"'; i++; } 
-          else if (c === '"') { inQuotes = !inQuotes; } 
-          else if (c === ',' && !inQuotes) { curRow.push(curCell); curCell = ''; } 
-          else if ((c === '\n' || c === '\r') && !inQuotes) { 
-            if (c === '\r' && text[i+1] === '\n') i++; 
-            curRow.push(curCell); rows.push(curRow); curRow = []; curCell = ''; 
-          } else { curCell += c; } 
-        }
-        if (curCell !== '' || curRow.length > 0) { curRow.push(curCell); rows.push(curRow); }
-        return rows;
-      };
-
-      const parsedRows = parseCSVRow(csvText);
-      const newData = JSON.parse(JSON.stringify(brandData));
-      
-      const hasNewColors = parsedRows.some(row => row[0]?.trim() === 'WARNA');
-      if (hasNewColors) newData.colors = []; 
-      let colorIdCounter = 1;
-
-      parsedRows.forEach((row, index) => {
-        if (index === 0 || row.length < 4) return; 
-        const category = row[0].trim(); const element = row[1].trim();
-        const valueColumn = row[2].trim(); const description = row[3].trim();
-
-        if (category === 'PRISMA') {
-          if (element.includes('Physique')) newData.prism.physique = description;
-          if (element.includes('Personality')) newData.prism.personality = description;
-          if (element.includes('Relationship')) newData.prism.relationship = description;
-          if (element.includes('Culture')) newData.prism.culture = description;
-          if (element.includes('Reflection')) newData.prism.reflection = description;
-          if (element.includes('Self-Image')) newData.prism.selfImage = description;
-        } 
-        else if (category === 'LOGO') {
-          if (element.includes('Primary')) newData.logo.primary = description;
-          if (element.includes('Horizontal')) newData.logo.secondary = description;
-          if (element.includes('Favicon')) newData.logo.favicon = description;
-        }
-        else if (category === 'WARNA') {
-          newData.colors.push({ id: colorIdCounter++, name: element || `Color ${colorIdCounter}`, hex: valueColumn !== '-' ? valueColumn : '#CCCCCC', desc: description });
-        }
-        else if (category === 'TIPOGRAFI') {
-          if (element.toLowerCase().includes('heading')) { newData.typography.heading.font = valueColumn; newData.typography.heading.desc = description; }
-          if (element.toLowerCase().includes('sub-heading')) { newData.typography.subheading.font = valueColumn; newData.typography.subheading.desc = description; }
-          if (element.toLowerCase().includes('body text')) { newData.typography.body.font = valueColumn; newData.typography.body.desc = description; }
-        }
-        else if (category === 'GRAFIS TAMBAHAN') {
-          if (element.toLowerCase().includes('fotografi')) newData.graphics.photography = description;
-          if (element.toLowerCase().includes('ikonografi')) newData.graphics.iconography = description;
-          if (element.toLowerCase().includes('pola')) newData.graphics.pattern = description;
-        }
-      });
-
-      setTimeout(() => {
-        setBrandData(newData); setIsImporting(false); setImportSuccess(true);
-        setTimeout(() => setImportSuccess(false), 3000);
-      }, 800); 
-    };
-    reader.readAsText(file); 
+  const loadProject = (project) => {
+    setProjectContext(project.context);
+    setSelectedName(project.brandName);
+    setBrandData(project.data);
+    setSelectedPersonaId(project.linkedPersonaId || '');
+    setCurrentStep(4);
   };
 
-  const EditField = ({ label, value, onChange, placeholder = "Ketik panduan di sini..." }) => (
-    <div className="mb-4">
-      <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider">{label}</label>
-      <textarea value={value} onChange={onChange} placeholder={placeholder} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-sm text-slate-700 dark:text-zinc-300 outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none h-24 custom-scrollbar" />
+  const deleteProject = (id) => {
+    if (window.confirm("Yakin mau hapus project ini?")) {
+      const updated = savedProjects.filter(p => p.id !== id);
+      setSavedProjects(updated);
+      localStorage.setItem('saas_brand_projects', JSON.stringify(updated));
+    }
+  };
+
+  const startNewProject = () => {
+    setProjectContext({ industry: '', description: '' });
+    setSelectedName('');
+    setCustomName('');
+    setCurrentStep(1);
+  };
+
+  const ReadOnlyField = ({ label, value }) => (
+    <div className="mb-4 text-left">
+      <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-widest">{label}</label>
+      <div className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-4 text-sm text-slate-700 dark:text-zinc-300 min-h-[4rem]">
+        {value || <span className="text-slate-400 italic">Sedang diracik AI...</span>}
+      </div>
     </div>
   );
 
-  const EditPrismCard = ({ title, icon: Icon, colorClass, value, field }) => (
-    <motion.div whileHover={{ scale: 1.02, zIndex: 20 }} className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col items-center text-center relative w-full md:w-[320px] z-10">
-      <div className={`w-10 h-10 rounded-2xl mb-3 flex items-center justify-center bg-slate-50 dark:bg-zinc-800 ${colorClass}`}><Icon size={20} /></div>
-      <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-2">{title}</h4>
-      <textarea value={value} onChange={(e) => setBrandData({...brandData, prism: {...brandData.prism, [field]: e.target.value}})} placeholder={`Ketik ${title} di sini...`} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-xs text-slate-600 dark:text-zinc-400 outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none h-32 custom-scrollbar text-center" />
-    </motion.div>
-  );
-
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Palette className="text-emerald-500" /> Brand Identity (Editable)
-          </h2>
-          <p className="text-slate-500 mt-1">Platform CMS: Atur, edit, dan export panduan visual Aqshor Anda.</p>
+    <div className="space-y-8 pb-20 max-w-5xl mx-auto">
+      {/* HEADER */}
+      <div className="text-center mb-10">
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white flex items-center justify-center gap-3 mb-3">
+          <Sparkles className="text-emerald-500" size={32} /> AI Brand Architect
+        </h2>
+        <div className="flex justify-center items-center mt-8 gap-2 overflow-x-auto">
+          {['The Brief', 'The Naming', 'The Direction', 'The Execution'].map((label, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${currentStep === idx + 1 ? 'bg-emerald-500 text-white shadow-lg' : currentStep > idx + 1 ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                {idx + 1}. {label}
+              </div>
+              {idx < 3 && <div className="w-4 h-0.5 bg-slate-200"></div>}
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div className="flex overflow-x-auto custom-scrollbar border-b border-slate-200 dark:border-zinc-800">
-        <button onClick={() => setActiveTab('master')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'master' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Database size={18} /> Master Sync</button>
-        <button onClick={() => setActiveTab('prism')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'prism' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Box size={18} /> Brand Prism</button>
-        <button onClick={() => setActiveTab('logos')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'logos' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><ImageIcon size={18} /> Logo & Colors</button>
-        <button onClick={() => setActiveTab('typo')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'typo' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Type size={18} /> Typo & Graphics</button>
-        {/* NEW TAB: AI VISUALIZER */}
-        <button onClick={() => setActiveTab('visualizer')} className={`flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'visualizer' ? 'border-purple-500 text-purple-600 dark:text-purple-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Sparkles size={18} className={activeTab === 'visualizer' ? 'text-purple-500' : ''} /> AI Visualizer</button>
       </div>
 
       <AnimatePresence mode="wait">
         
-        {/* TAB 1: MASTER SYNC */}
-        {activeTab === 'master' && (
-          <motion.div key="master" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 space-y-6">
-            <div className="bg-emerald-600 dark:bg-emerald-900/40 border border-emerald-500/50 p-8 rounded-3xl text-white relative overflow-hidden">
-               <div className="relative z-10 max-w-2xl">
-                 <h3 className="text-2xl font-black mb-2 flex items-center gap-3"><Database /> Sinkronisasi Master File CSV</h3>
-                 <p className="text-emerald-100 mb-8 leading-relaxed">Ingin mengubah seluruh data brand sekaligus? Download template CSV di bawah, isi kolom Value dan Deskripsinya menggunakan Excel, lalu upload kembali ke sini. Seluruh halaman akan otomatis membaca dan menyimpan file CSV Anda.</p>
-                 <div className="flex flex-col sm:flex-row gap-4">
-                   <button onClick={handleDownloadCSV} className="flex items-center justify-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl transition-all"><Download size={18}/> 1. Download Current Data (.csv)</button>
-                   <div className="relative flex-1 max-w-xs">
-                     {isImporting ? (
-                       <div className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-emerald-600 font-bold rounded-xl w-full">Membaca File CSV...</div>
-                     ) : importSuccess ? (
-                       <div className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-800 text-white font-bold rounded-xl w-full"><Check size={18}/> Data Berhasil Dibaca!</div>
-                     ) : (
-                       <>
-                         <input type="file" accept=".csv" onChange={handleImportCSV} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                         <button className="flex items-center justify-center gap-2 px-6 py-3 font-bold rounded-xl transition-all w-full bg-white text-emerald-700 hover:bg-emerald-50 shadow-lg shadow-black/10"><Upload size={18}/> 2. Upload Excel / CSV</button>
-                       </>
-                     )}
-                   </div>
+        {/* STEP 1: BRIEF */}
+        {currentStep === 1 && (
+          <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-3xl shadow-sm text-left">
+               <h3 className="text-xl font-black mb-6 flex items-center gap-2"><Database className="text-blue-500"/> Mulai Strategi Brand</h3>
+               <div className="space-y-5">
+                 <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-2xl">
+                    <label className="block text-xs font-bold text-indigo-700 uppercase mb-2">Pilih Data Riset Persona</label>
+                    <select value={selectedPersonaId} onChange={(e) => setSelectedPersonaId(e.target.value)} className="w-full bg-white dark:bg-zinc-950 border border-indigo-200 rounded-xl p-3 text-sm outline-none">
+                      <option value="">-- Tanpa Hubungkan Persona --</option>
+                      {availablePersonas.map(p => <option key={p.id} value={p.id}>{p.name} ({p.date})</option>)}
+                    </select>
                  </div>
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Kategori Bisnis</label>
+                   <input type="text" value={projectContext.industry} onChange={(e) => setProjectContext({...projectContext, industry: e.target.value})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Contoh: Skincare, EduTech..."/>
+                 </div>
+                 <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Deskripsi & Pesan Brand</label>
+                   <textarea rows="4" value={projectContext.description} onChange={(e) => setProjectContext({...projectContext, description: e.target.value})} className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Visi brand Anda..."></textarea>
+                 </div>
+                 <button onClick={handleSubmitStep1} disabled={isAnalyzing} className="w-full py-4 bg-emerald-500 text-white font-black rounded-xl hover:bg-emerald-400 transition-all flex items-center justify-center gap-2">
+                   {isAnalyzing ? <Loader2 className="animate-spin"/> : 'Generate Ide Brand'} <ArrowRight size={20}/>
+                 </button>
                </div>
             </div>
-          </motion.div>
-        )}
-
-        {/* TAB 2: BRAND PRISM */}
-        {activeTab === 'prism' && (
-          <motion.div key="prism" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4">
-            <div className="mb-8 text-center"><h3 className="text-2xl font-black text-slate-900 dark:text-white flex items-center justify-center gap-2 mb-2"><Box className="text-blue-500" /> Editable Brand Prism</h3></div>
-            <div className="relative py-12 px-4 sm:px-10 bg-slate-100 dark:bg-zinc-900/30 rounded-[3rem] border border-slate-200 dark:border-zinc-800 flex flex-col items-center overflow-hidden">
-              <svg className="absolute inset-0 w-full h-full pointer-events-none hidden md:block opacity-40 dark:opacity-20" style={{ zIndex: 0 }}>
-                 <line x1="50%" y1="10%" x2="50%" y2="90%" stroke="currentColor" className="text-slate-400" strokeWidth="2" />
-                 <line x1="50%" y1="15%" x2="15%" y2="50%" stroke="currentColor" className="text-slate-400" strokeWidth="2" strokeDasharray="8 8" />
-                 <line x1="15%" y1="50%" x2="50%" y2="85%" stroke="currentColor" className="text-slate-400" strokeWidth="2" strokeDasharray="8 8" />
-                 <line x1="50%" y1="85%" x2="85%" y2="50%" stroke="currentColor" className="text-slate-400" strokeWidth="2" strokeDasharray="8 8" />
-                 <line x1="85%" y1="50%" x2="50%" y2="15%" stroke="currentColor" className="text-slate-400" strokeWidth="2" strokeDasharray="8 8" />
-              </svg>
-              <div className="text-xs font-black tracking-widest text-slate-500 uppercase mb-8 bg-slate-100 dark:bg-zinc-900/30 px-4 z-10 rounded-full">⬇ Picture of Sender ⬇</div>
-              <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-12 w-full max-w-4xl z-10 relative">
-                 <EditPrismCard title="Physique" icon={ImageIcon} colorClass="text-blue-500" field="physique" value={brandData.prism.physique} />
-                 <EditPrismCard title="Personality" icon={Smile} colorClass="text-amber-500" field="personality" value={brandData.prism.personality} />
-              </div>
-              <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0 w-full max-w-6xl my-8 z-10 relative">
-                 <EditPrismCard title="Relationship" icon={HeartHandshake} colorClass="text-rose-500" field="relationship" value={brandData.prism.relationship} />
-                 <EditPrismCard title="Culture" icon={Globe} colorClass="text-emerald-500" field="culture" value={brandData.prism.culture} />
-              </div>
-              <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-12 w-full max-w-4xl z-10 relative">
-                 <EditPrismCard title="Reflection" icon={Users} colorClass="text-purple-500" field="reflection" value={brandData.prism.reflection} />
-                 <EditPrismCard title="Self-Image" icon={UserCircle} colorClass="text-indigo-500" field="selfImage" value={brandData.prism.selfImage} />
-              </div>
-              <div className="text-xs font-black tracking-widest text-slate-500 uppercase mt-8 bg-slate-100 dark:bg-zinc-900/30 px-4 z-10 rounded-full">⬆ Picture of Receiver ⬆</div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* TAB 3: LOGO & COLORS */}
-        {activeTab === 'logos' && (
-          <motion.div key="logos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><ImageIcon className="text-blue-500" /> Desain Logo</h3>
-              <EditField label="Logo Utama (Stacked)" value={brandData.logo.primary} onChange={(e) => setBrandData({...brandData, logo: {...brandData.logo, primary: e.target.value}})} />
-              <EditField label="Logo Sekunder (Horizontal)" value={brandData.logo.secondary} onChange={(e) => setBrandData({...brandData, logo: {...brandData.logo, secondary: e.target.value}})} />
-              <EditField label="Ikon (Logomark/Favicon)" value={brandData.logo.favicon} onChange={(e) => setBrandData({...brandData, logo: {...brandData.logo, favicon: e.target.value}})} />
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                 <h3 className="text-xl font-bold flex items-center gap-2"><Droplet className="text-rose-500" /> Palet Warna</h3>
-                 <button onClick={handleAddColor} className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"><Plus size={14}/> Tambah Warna</button>
-              </div>
-              <div className="space-y-4">
-                {brandData.colors.map((color, index) => (
-                  <div key={color.id} className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-2xl flex gap-4 relative group">
-                    <button onClick={() => handleRemoveColor(color.id)} className="absolute -top-2 -right-2 bg-rose-100 text-rose-600 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={14}/></button>
-                    <div className="w-12 h-12 shrink-0 rounded-xl shadow-inner border border-black/10 transition-colors duration-300" style={{ backgroundColor: color.hex }}></div>
-                    <div className="flex-1">
-                      <div className="flex gap-2 mb-2">
-                        <input value={color.name} onChange={(e) => { const newC = [...brandData.colors]; newC[index].name = e.target.value; setBrandData({...brandData, colors: newC}); }} className="font-bold text-sm bg-transparent outline-none border-b border-dashed border-slate-300 w-1/2" placeholder="Nama Warna" />
-                        <input value={color.hex} onChange={(e) => { const newC = [...brandData.colors]; newC[index].hex = e.target.value; setBrandData({...brandData, colors: newC}); }} className="text-sm font-mono bg-transparent outline-none border-b border-dashed border-slate-300 w-1/2" placeholder="#HEXCODE" />
-                      </div>
-                      <textarea value={color.desc} onChange={(e) => { const newC = [...brandData.colors]; newC[index].desc = e.target.value; setBrandData({...brandData, colors: newC}); }} placeholder="Deskripsi filosofi warna..." className="w-full bg-transparent text-sm text-slate-600 outline-none resize-none h-16 custom-scrollbar" />
+            <div className="bg-slate-50 dark:bg-zinc-900 p-6 rounded-3xl border border-slate-200 text-left">
+              <h4 className="font-bold text-sm mb-4 flex items-center gap-2"><FolderOpen size={18} className="text-amber-500"/> Brand Tersimpan</h4>
+              <div className="space-y-3">
+                {savedProjects.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Belum ada brand tersimpan.</p>}
+                {savedProjects.map(p => (
+                  <div key={p.id} className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-slate-100 flex justify-between items-center group shadow-sm">
+                    <div>
+                      <p className="font-bold text-xs line-clamp-1">{p.name}</p>
+                      <p className="text-[10px] text-slate-400">{p.date}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => loadProject(p)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ArrowRight size={14}/></button>
+                      <button onClick={() => deleteProject(p.id)} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
                     </div>
                   </div>
                 ))}
@@ -320,126 +269,146 @@ export const BrandIdentityPage = () => {
           </motion.div>
         )}
 
-        {/* TAB 4: TYPO & GRAPHICS */}
-        {activeTab === 'typo' && (
-          <motion.div key="typo" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Type className="text-emerald-500" /> Sistem Tipografi</h3>
-              
-              <div className="mb-6 border-b border-slate-100 pb-6">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Heading Font</label>
-                <input value={brandData.typography.heading.font} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, heading: {...brandData.typography.heading, font: e.target.value}}})} placeholder="Nama Font (e.g. Playfair Display)" className="w-full text-lg font-black bg-transparent outline-none mb-2 border-b border-dashed border-slate-300" />
-                <textarea value={brandData.typography.heading.desc} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, heading: {...brandData.typography.heading, desc: e.target.value}}})} placeholder="Alasan penggunaan..." className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-sm resize-none h-20" />
-              </div>
+        {/* STEP 2: THE NAMING */}
+        {currentStep === 2 && (
+          <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+            <div className="bg-white dark:bg-zinc-900 p-8 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm">
+               <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                 <div className="text-left">
+                    <h3 className="text-2xl font-black flex items-center gap-2"><CheckCircle className="text-emerald-500"/> Pilih Nama Brand</h3>
+                    <p className="text-slate-500 text-sm mt-1">Pilih 1 dari 15 ide AI, atau masukkan kreasi Anda sendiri.</p>
+                 </div>
+                 <button onClick={() => setCurrentStep(3)} disabled={!selectedName && !customName} className={`px-8 py-3 rounded-xl font-bold transition-all ${(!selectedName && !customName) ? 'bg-slate-100 text-slate-400' : 'bg-emerald-500 text-white hover:scale-105 shadow-lg'}`}>
+                   Lanjut ke Direction <ArrowRight className="inline ml-2" size={18}/>
+                 </button>
+               </div>
 
-              <div className="mb-6 border-b border-slate-100 pb-6">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sub-Heading Font</label>
-                <input value={brandData.typography.subheading.font} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, subheading: {...brandData.typography.subheading, font: e.target.value}}})} placeholder="Nama Font (e.g. Montserrat)" className="w-full text-base font-bold bg-transparent outline-none mb-2 border-b border-dashed border-slate-300" />
-                <textarea value={brandData.typography.subheading.desc} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, subheading: {...brandData.typography.subheading, desc: e.target.value}}})} placeholder="Alasan penggunaan..." className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-sm resize-none h-20" />
-              </div>
+               <div className="mb-8 p-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 rounded-2xl text-left">
+                  <label className="block text-xs font-bold text-emerald-700 uppercase mb-3 flex items-center gap-2"><Edit3 size={14}/> Nama Custom</label>
+                  <input 
+                    type="text" value={customName} 
+                    onChange={(e) => { setCustomName(e.target.value); if(e.target.value) setSelectedName(''); }}
+                    placeholder="Ketik nama brand..."
+                    className="w-full bg-white dark:bg-zinc-950 border border-emerald-200 rounded-xl p-4 text-lg font-black outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Body Text Font</label>
-                <input value={brandData.typography.body.font} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, body: {...brandData.typography.body, font: e.target.value}}})} placeholder="Nama Font (e.g. Inter)" className="w-full text-sm font-medium bg-transparent outline-none mb-2 border-b border-dashed border-slate-300" />
-                <textarea value={brandData.typography.body.desc} onChange={e => setBrandData({...brandData, typography: {...brandData.typography, body: {...brandData.typography.body, desc: e.target.value}}})} placeholder="Alasan penggunaan..." className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-3 text-sm resize-none h-20" />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><LayoutTemplate className="text-amber-500" /> Elemen Grafis Tambahan</h3>
-              <EditField label="📷 Gaya Fotografi (Moodboard & Makro)" value={brandData.graphics.photography} onChange={(e) => setBrandData({...brandData, graphics: {...brandData.graphics, photography: e.target.value}})} />
-              <EditField label="🖋️ Ikonografi (Line-Art & UVP)" value={brandData.graphics.iconography} onChange={(e) => setBrandData({...brandData, graphics: {...brandData.graphics, iconography: e.target.value}})} />
-              <EditField label="🌀 Pola (Pattern Latar Belakang)" value={brandData.graphics.pattern} onChange={(e) => setBrandData({...brandData, graphics: {...brandData.graphics, pattern: e.target.value}})} />
+               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                 {brandNamingOptions.map((name, idx) => (
+                   <button 
+                    key={idx} onClick={() => { setSelectedName(name); setCustomName(''); }}
+                    className={`p-4 rounded-2xl border-2 transition-all text-sm font-bold h-24 flex items-center justify-center leading-tight ${selectedName === name ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md scale-105' : 'border-slate-100 hover:border-emerald-200 text-slate-600'}`}
+                   >
+                     {name}
+                   </button>
+                 ))}
+               </div>
             </div>
           </motion.div>
         )}
 
-        {/* ============================== */}
-        {/* NEW TAB 5: AI VISUALIZER       */}
-        {/* ============================== */}
-        {activeTab === 'visualizer' && (
-          <motion.div key="visualizer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            {/* SISI KIRI: Konverter Prompt (The Brain) */}
-            <div className="lg:col-span-4 space-y-6">
-               <div className="bg-purple-600 dark:bg-purple-900/40 border border-purple-500/50 p-6 rounded-3xl text-white shadow-xl shadow-purple-500/20 relative overflow-hidden">
-                 <div className="relative z-10">
-                   <h3 className="text-xl font-black mb-2 flex items-center gap-2"><Wand2 size={20}/> AI Prompt Engine</h3>
-                   <p className="text-purple-100 text-sm mb-6 opacity-80">
-                     Sistem akan menerjemahkan data Brand Identity Anda menjadi parameter teknis yang dipahami oleh AI Generator (Midjourney / DALL-E).
-                   </p>
-                   
-                   <button onClick={handleAutoGeneratePrompt} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl transition-all mb-4">
-                     1. Compile Brand Data
-                   </button>
+        {/* STEP 3: THE DIRECTION (BRAND PRISM) */}
+        {currentStep === 3 && (
+          <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+             <div className="bg-emerald-50 dark:bg-emerald-950/50 p-6 rounded-3xl border border-emerald-100 flex flex-col md:flex-row justify-between items-center gap-4 text-left shadow-sm">
+              <div>
+                <h3 className="text-xl font-black text-emerald-800">Brand Direction: {customName || selectedName}</h3>
+                <p className="text-xs text-emerald-600 mt-1">Panduan karakter dan esensi brand Anda.</p>
+              </div>
+              <button onClick={() => setCurrentStep(4)} className="px-8 py-3 bg-emerald-500 text-white rounded-xl font-bold hover:scale-105 transition-all shadow-lg">
+                Lanjut ke Execution <ArrowRight className="inline ml-2" size={18}/>
+              </button>
+            </div>
 
-                   <textarea 
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="Prompt akan muncul di sini..."
-                      className="w-full h-40 bg-purple-950/50 border border-purple-400/30 rounded-xl p-4 text-sm text-purple-50 placeholder:text-purple-300/50 outline-none focus:ring-2 focus:ring-purple-400 resize-none custom-scrollbar mb-4"
-                   />
-
-                   <button 
-                     onClick={handleGenerateVisual}
-                     disabled={!aiPrompt || isGenerating}
-                     className={`w-full flex items-center justify-center gap-2 px-4 py-4 font-black rounded-xl transition-all shadow-lg ${!aiPrompt || isGenerating ? 'bg-purple-800 text-purple-400 cursor-not-allowed' : 'bg-white text-purple-700 hover:bg-purple-50 hover:scale-[1.02]'}`}
-                   >
-                     {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                     {isGenerating ? 'AI IS GENERATING...' : '2. GENERATE MOODBOARD'}
-                   </button>
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-[3rem] text-center shadow-xl">
+               <h3 className="text-xl font-black mb-10 flex items-center justify-center gap-2"><Compass className="text-blue-500"/> Brand Identity Prism</h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                 <div className="space-y-6">
+                    <ReadOnlyField label="Physique (Visual Core)" value={brandData.prism?.physique}/>
+                    <ReadOnlyField label="Relationship (Vibe)" value={brandData.prism?.relationship}/>
+                    <ReadOnlyField label="Reflection (Target Perception)" value={brandData.prism?.reflection}/>
+                 </div>
+                 <div className="space-y-6">
+                    <ReadOnlyField label="Personality (Voice)" value={brandData.prism?.personality}/>
+                    <ReadOnlyField label="Culture (Values)" value={brandData.prism?.culture}/>
+                    <ReadOnlyField label="Self-Image (User Feeling)" value={brandData.prism?.selfImage}/>
                  </div>
                </div>
+            </div>
+          </motion.div>
+        )}
 
-               <div className="bg-slate-100 dark:bg-zinc-900/50 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">Webhook Status <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span></h4>
-                  <p className="text-xs text-slate-400">Siap dihubungkan ke <b>n8n</b> untuk mengeksekusi prompt ke endpoint AI pihak ketiga.</p>
+        {/* STEP 4: THE EXECUTION (VISUAL KIT) */}
+        {currentStep === 4 && (
+          <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+            
+            <div className="bg-emerald-50 dark:bg-emerald-950/50 p-6 rounded-3xl border border-emerald-100 flex flex-col md:flex-row justify-between items-center gap-4 text-left shadow-sm">
+              <div>
+                <h3 className="text-xl font-black text-emerald-800">Visual Kit: {customName || selectedName}</h3>
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><CheckCircle size={12}/> Ekspor data untuk pembuatan Image Asset.</p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setCurrentStep(3)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">Kembali</button>
+                <button onClick={handleSaveProject} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-amber-400 transition-colors"><Save size={16}/> Simpan</button>
+                {/* TOMBOL DOWNLOAD CSV BARU! */}
+                <button onClick={handleDownloadCSV} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-blue-500 transition-colors shadow-lg"><Download size={16}/> Download Prompts (CSV)</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-3xl text-left shadow-sm">
+                  <h3 className="font-black mb-6 flex items-center gap-2"><ImageIcon className="text-blue-500"/> Logo Concept</h3>
+                  <ReadOnlyField label="Primary Logo" value={brandData.logo?.primary}/>
+                  <ReadOnlyField label="Secondary / Icon" value={brandData.logo?.secondary || brandData.logo?.favicon}/>
+               </div>
+               
+               <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-3xl text-left shadow-sm">
+                  <h3 className="font-black mb-6 flex items-center gap-2"><Droplet className="text-rose-500"/> Color Palette</h3>
+                  <div className="space-y-4">
+                    {brandData.colors && brandData.colors.map((c, i) => (
+                      <div key={i} className="flex gap-4 items-center bg-slate-50 dark:bg-zinc-950 p-3 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                        <div className="w-12 h-12 rounded-xl border border-black/10 shadow-inner shrink-0" style={{backgroundColor: c.hex || '#ccc'}}></div>
+                        <div>
+                          <p className="font-bold text-xs">{c.name || 'Warna'} <span className="text-slate-400 font-mono ml-2">{c.hex}</span></p>
+                          <p className="text-[10px] text-slate-500 line-clamp-2 mt-1">{c.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                </div>
             </div>
 
-            {/* SISI KANAN: Galeri Output (The Canvas) */}
-            <div className="lg:col-span-8">
-               <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 min-h-[500px] h-full shadow-sm flex flex-col">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold flex items-center gap-2"><ImageIcon className="text-slate-400" /> Visual Output Gallery</h3>
-                    {generatedImages.length > 0 && <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-full font-bold">4 Results</span>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-3xl text-left shadow-sm">
+                  <h3 className="font-black mb-6 flex items-center gap-2"><Type className="text-emerald-500"/> Sistem Tipografi</h3>
+                  <div className="mb-4 text-left">
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-widest">Heading Font</label>
+                    <div className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 rounded-xl p-4">
+                      <h4 className="text-lg font-black text-slate-900 dark:text-white mb-1">{brandData.typography?.heading?.font || '-'}</h4>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400">{brandData.typography?.heading?.desc || 'Menunggu AI...'}</p>
+                    </div>
                   </div>
-
-                  {/* Empty State */}
-                  {!isGenerating && generatedImages.length === 0 && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl bg-slate-50 dark:bg-zinc-900/50">
-                       <Sparkles size={48} className="mb-4 opacity-30" />
-                       <p className="font-medium text-slate-500 dark:text-zinc-400">Canvas masih kosong.</p>
-                       <p className="text-sm mt-1">Compile data dan klik Generate di sebelah kiri.</p>
+                  <div className="mb-4 text-left">
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-widest">Sub-Heading Font</label>
+                    <div className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 rounded-xl p-4">
+                      <h4 className="text-base font-bold text-slate-900 dark:text-white mb-1">{brandData.typography?.subheading?.font || '-'}</h4>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400">{brandData.typography?.subheading?.desc || 'Menunggu AI...'}</p>
                     </div>
-                  )}
-
-                  {/* Loading State */}
-                  {isGenerating && (
-                    <div className="flex-1 grid grid-cols-2 gap-4">
-                       {[1,2,3,4].map(i => (
-                         <div key={i} className="bg-slate-100 dark:bg-zinc-800 rounded-2xl animate-pulse flex items-center justify-center border border-slate-200 dark:border-zinc-700">
-                           <ImageIcon size={32} className="opacity-20 text-slate-400"/>
-                         </div>
-                       ))}
+                  </div>
+                  <div className="mb-4 text-left">
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-widest">Body Text Font</label>
+                    <div className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 rounded-xl p-4">
+                      <h4 className="text-base font-medium text-slate-900 dark:text-white mb-1">{brandData.typography?.body?.font || '-'}</h4>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400">{brandData.typography?.body?.desc || 'Menunggu AI...'}</p>
                     </div>
-                  )}
+                  </div>
+               </div>
 
-                  {/* Result State */}
-                  {!isGenerating && generatedImages.length > 0 && (
-                    <div className="flex-1 grid grid-cols-2 gap-4">
-                       {generatedImages.map((img, i) => (
-                         <div key={i} className="group relative rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900 cursor-pointer shadow-sm hover:shadow-md transition-all">
-                           <img src={img} alt={`Generated Visual ${i}`} className="w-full h-full object-cover aspect-[4/3] group-hover:scale-105 transition-transform duration-500" />
-                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                             <button className="text-xs font-bold text-white bg-white/20 hover:bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 w-max">
-                               Use as Concept <ArrowRight size={12}/>
-                             </button>
-                           </div>
-                         </div>
-                       ))}
-                    </div>
-                  )}
+               <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-3xl text-left shadow-sm">
+                  <h3 className="font-black mb-6 flex items-center gap-2"><LayoutTemplate className="text-amber-500"/> Elemen Grafis Tambahan</h3>
+                  <ReadOnlyField label="📷 Gaya Fotografi" value={brandData.graphics?.photography}/>
+                  <ReadOnlyField label="🖋️ Ikonografi" value={brandData.graphics?.iconography}/>
+                  <ReadOnlyField label="🌀 Pola (Pattern)" value={brandData.graphics?.pattern}/>
                </div>
             </div>
 

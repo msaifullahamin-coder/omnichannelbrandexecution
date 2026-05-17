@@ -130,9 +130,9 @@ export default function App() {
   const NAVIGATION = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'calendar', label: 'Master Calendar', icon: Calendar },
-    { id: 'roadmap', label: 'Project Roadmap', icon: Map },
+    { id: 'persona', label: 'Market & Persona', icon: Bot },
     { id: 'brand', label: 'Brand Identity', icon: Palette },
-    { id: 'persona', label: 'Target Persona', icon: Bot },
+    { id: 'roadmap', label: 'Project Roadmap', icon: Map },
     { id: 'campaigns', label: 'Campaign Manager', icon: Megaphone },
     { id: 'tasks', label: 'Task Kanban', icon: KanbanSquare },
     { id: 'pdca', label: 'PDCA Iterations', icon: RefreshCcw },
@@ -188,12 +188,12 @@ export default function App() {
         return <DashboardPage phases={enrichedPhases} navigateToRoadmap={navigateToRoadmap} />;
       case 'calendar': 
         return <CalendarPage tasks={enrichedTasks} pdcaIterations={activeProject.pdcaIterations || []} navigateToTaskBoard={navigateToTaskBoard} navigateToPdca={navigateToPdca} currentUser={loggedInUser} />;
-      case 'roadmap': 
-        return <RoadmapPage users={users} tasks={enrichedTasks} setTasks={(val) => updateActiveProjectData('tasks', val)} phases={enrichedPhases} setPhases={(val) => updateActiveProjectData('phases', val)} highlightPhaseName={highlightPhaseName} setHighlightPhaseName={setHighlightPhaseName} setHighlightTaskId={setHighlightTaskId} setActiveTab={setActiveTab} />;
-      case 'brand': 
-        return <BrandIdentityPage />;
       case 'persona': 
         return <PersonaPage highlightPersonaName={highlightPersonaName} setHighlightPersonaName={setHighlightPersonaName} />;
+      case 'brand': 
+        return <BrandIdentityPage />;
+      case 'roadmap': 
+        return <RoadmapPage users={users} tasks={enrichedTasks} setTasks={(val) => updateActiveProjectData('tasks', val)} phases={enrichedPhases} setPhases={(val) => updateActiveProjectData('phases', val)} highlightPhaseName={highlightPhaseName} setHighlightPhaseName={setHighlightPhaseName} setHighlightTaskId={setHighlightTaskId} setActiveTab={setActiveTab} />;
       case 'campaigns': 
         return <CampaignPage campaigns={activeProject.campaigns || []} updateActiveProjectData={updateActiveProjectData} personas={activeProject.personas?.length > 0 ? activeProject.personas : personas} />;
       case 'tasks': 
