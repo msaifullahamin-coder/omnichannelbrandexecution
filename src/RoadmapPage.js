@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, GripVertical, CheckCircle2, Wallet, Activity, 
   Edit, Trash2, ChevronRight, KanbanSquare, Target, 
-  Users, AlertCircle, ArrowRight 
+  Users, AlertCircle, ArrowRight, Sparkles, Briefcase, Loader2
 } from 'lucide-react';
+
 import { Card, Badge, ProgressBar } from './components';
 import { formatRupiah, personas } from './dummyData';
 
@@ -12,6 +13,112 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
   const [expandedPhaseId, setExpandedPhaseId] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null); 
   const [draggedPhaseIndex, setDraggedPhaseIndex] = useState(null);
+
+  // =====================================================================
+  // STATE BARU KHUSUS AI ROADMAP GENERATOR
+  // =====================================================================
+  const [availableBrands, setAvailableBrands] = useState([]);
+  const [selectedBrandId, setSelectedBrandId] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    // Sedot data brand dari localStorage (hasil dari Brand Identity Page)
+    const localBrandData = localStorage.getItem('saas_brand_projects');
+    if (localBrandData) {
+      setAvailableBrands(JSON.parse(localBrandData));
+    }
+  }, []);
+
+  const handleGenerateRoadmap = async () => {
+    if (!selectedBrandId) return alert("Pilih Brand Identity terlebih dahulu!");
+    
+    setIsGenerating(true);
+    try {
+      const selectedBrand = availableBrands.find(b => b.id === selectedBrandId);
+      
+      const formData = new FormData();
+      formData.append('brandName', selectedBrand.name);
+      formData.append('industry', selectedBrand.context.industry);
+      formData.append('brandData', JSON.stringify(selectedBrand.data));
+
+      const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook/api-project-roadmap', {
+        method: 'POST',
+        body: formData
+      });
+
+      const rawText = await response.text();
+      let finalData = {};
+      
+      try {
+        let result = JSON.parse(rawText);
+        let extractedString = "";
+        if (Array.isArray(result) && result[0]?.text) extractedString = result[0].text;
+        else if (result.text) extractedString = result.text;
+        else finalData = result; 
+
+        if (extractedString) {
+            let cleanStr = extractedString.replace(/```json/gi, '').replace(/```/g, '').trim();
+            finalData = JSON.parse(cleanStr);
+        }
+      } catch (e) {
+        console.error("Gagal bongkar paket:", e);
+        alert("Waduh, format AI berantakan. Coba generate ulang.");
+        setIsGenerating(false);
+        return;
+      }
+
+      // TRANSLATE DATA AI KE FORMAT STATE EXISTING (MODE APPEND/TAMBAH AMAN)
+      if (finalData.roadmap && Array.isArray(finalData.roadmap)) {
+        // Cari ID fase terakhir biar nggak numpuk
+        let currentMaxPhaseId = phases.length > 0 ? Math.max(...phases.map(p => p.id)) : 0;
+        
+        const generatedPhases = [...phases]; // Copy data lama biar aman
+        const generatedTasks = [...tasks];   // Copy data lama biar aman
+
+        finalData.roadmap.forEach((r, idx) => {
+          const newPhaseId = currentMaxPhaseId + idx + 1;
+          const phaseTitle = `Phase ${newPhaseId} - ${r.phase}`;
+          
+          generatedPhases.push({
+            id: newPhaseId,
+            title: phaseTitle,
+            progress: 0,
+            status: 'pending',
+            budget: 0,
+            realisasi: 0,
+            focus: r.focus, 
+            milestone: r.milestone 
+          });
+
+          r.tasks.forEach((tStr, tIdx) => {
+            generatedTasks.push({
+              id: `t_ai_${Date.now()}_${idx}_${tIdx}`,
+              title: tStr,
+              phase: phaseTitle,
+              status: 'todo',
+              priority: 'medium',
+              pic: users[0]?.name || 'Unassigned',
+              avatar: users[0]?.avatar || 'https://i.pravatar.cc/150?img=1',
+              targetPersonas: ['All Personas'],
+              budget: 0,
+              realisasi: 0
+            });
+          });
+        });
+
+        setPhases(generatedPhases);
+        setTasks(generatedTasks);
+        alert("Sukses! Roadmap AI berhasil ditambahkan ke dalam jadwal Anda.");
+      }
+
+    } catch (error) {
+      alert("Error menghubungi n8n. Pastikan webhook aktif.");
+      console.error(error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+  // =====================================================================
 
   useEffect(() => {
     if (highlightPhaseName) {
@@ -31,7 +138,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
           }
         }, 300);
       } else {
-        setHighlightPhaseName(null);
+         setHighlightPhaseName(null);
       }
     }
   }, [highlightPhaseName, phases, setHighlightPhaseName]);
@@ -74,7 +181,6 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
     e.preventDefault();
     const dragIndexStr = e.dataTransfer.getData("phaseIndex");
     if (!dragIndexStr) return;
-
     const dragIndex = parseInt(dragIndexStr, 10);
     
     if (dragIndex === dropIndex) {
@@ -160,7 +266,6 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
   const handleSavePhase = (e) => {
     e.preventDefault();
     if (!phaseFormName.trim()) return;
-
     if (editingPhaseId) {
        setPhases(phases.map(p => p.id === editingPhaseId ? { ...p, title: `Phase ${p.id} - ${phaseFormName}` } : p));
     } else {
@@ -241,7 +346,6 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
     if (!formData.title) return;
 
     const avatar = users.find(u => u.name === formData.pic)?.avatar || 'https://i.pravatar.cc/150?img=1';
-
     if (editingTask) {
       setTasks(tasks.map(t => t.id === editingTask.id ? { 
         ...t, 
@@ -276,7 +380,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
     <div className="space-y-6 max-w-5xl mx-auto pb-10 relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Project Master Roadmap</h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Project Master Roadmap</h2>
           <p className="text-slate-500 mt-1 text-sm sm:text-base">
             {selectedBrandId 
               ? `${availableBrands.find(b => b.id === selectedBrandId)?.name || 'Project'} Launch Plan` 
@@ -285,6 +389,39 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
         </div>
         <button onClick={openAddPhaseModal} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto">
           <Plus size={16} /> Add Milestone
+        </button>
+      </div>
+
+      {/* KOTAK GENERATE AI */}
+      <div className="bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 p-5 rounded-2xl flex flex-col md:flex-row gap-4 items-center mb-6">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <Sparkles className="text-blue-600 dark:text-blue-400" size={20}/>
+          </div>
+          <div className="hidden sm:block">
+            <h3 className="font-bold text-sm text-slate-800 dark:text-zinc-200">AI Roadmap Generator</h3>
+            <p className="text-[10px] text-slate-500">Ubah Brand Identity jadi Timeline</p>
+          </div>
+        </div>
+        
+        <select 
+          value={selectedBrandId} 
+          onChange={(e) => setSelectedBrandId(e.target.value)} 
+          className="flex-1 w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-2.5 text-sm outline-none"
+        >
+          <option value="">-- Pilih Brand Identity Tersimpan --</option>
+          {availableBrands.map(b => (
+            <option key={b.id} value={b.id}>{b.name} ({b.context.industry})</option>
+          ))}
+        </select>
+        
+        <button 
+          onClick={handleGenerateRoadmap} 
+          disabled={isGenerating || !selectedBrandId} 
+          className={`w-full md:w-auto px-6 py-2.5 font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-sm ${isGenerating || !selectedBrandId ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 shadow-md'}`}
+        >
+          {isGenerating ? <Loader2 size={16} className="animate-spin"/> : <Briefcase size={16}/>} 
+          {isGenerating ? 'Menyusun...' : 'Generate Roadmap'}
         </button>
       </div>
 
@@ -333,6 +470,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                         {phase.status === 'in-progress' && <Badge variant="warning">Active</Badge>}
                         {phase.status === 'completed' && <Badge variant="success">Done</Badge>}
                       </div>
+
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <ProgressBar progress={phase.progress} colorClass={phase.progress === 100 ? 'bg-emerald-500' : 'bg-amber-500'} />
@@ -340,6 +478,14 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                         <span className="text-sm font-medium text-slate-500 w-12 text-right">{phase.progress}%</span>
                       </div>
                       
+                      {/* FOCUS & MILESTONE DARI AI */}
+                      {phase.focus && (
+                        <div className="mt-3 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100/50 dark:border-blue-800/30">
+                          <p className="text-xs text-blue-800 dark:text-blue-300"><strong>🎯 Fokus:</strong> {phase.focus}</p>
+                          <p className="text-xs text-blue-800 dark:text-blue-300 mt-1"><strong>🏆 Target:</strong> {phase.milestone}</p>
+                        </div>
+                      )}
+
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-3 text-sm border-t border-slate-100 dark:border-zinc-800 pt-3">
                          <div className="flex items-center gap-2">
                              <span className="text-slate-500 flex items-center gap-1"><Wallet size={14}/> Budget Phase:</span>
@@ -359,7 +505,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                     <div className="flex items-center gap-2">
                        <div className="text-slate-300 hover:text-emerald-500 cursor-grab active:cursor-grabbing p-1 transition-colors sm:hidden" onClick={(e) => e.stopPropagation()}><GripVertical size={16} /></div>
                        <div className="flex -space-x-2 mr-2">
-                         {users.slice(0, 3).map((user, i) => (
+                          {users.slice(0, 3).map((user, i) => (
                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-900 bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-medium overflow-hidden">
                               <img src={user.avatar} alt="avatar" />
                            </div>
@@ -381,7 +527,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                 </div>
 
                 <AnimatePresence>
-                  {isExpanded && (
+                   {isExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -389,7 +535,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                       className="overflow-hidden"
                     >
                       <div className="mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
-                        <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-2 mb-3">
+                         <h4 className="text-sm font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-2 mb-3">
                           <KanbanSquare size={16} className="text-emerald-500" /> Tasks Breakdown & Persona Targets
                         </h4>
                         
@@ -402,7 +548,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                             const assignee = users.find(u => u.name === task.pic) || { avatar: task.avatar || 'https://i.pravatar.cc/150?img=1' };
                             return (
                               <div key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-zinc-950 rounded-xl border border-slate-100 dark:border-zinc-800 gap-4 hover:border-emerald-500/30 transition-colors">
-                                <div className="flex-1 w-full">
+                                 <div className="flex-1 w-full">
                                   <div className="flex items-start sm:items-center justify-between sm:justify-start gap-3 mb-2">
                                     <span 
                                       className="text-sm font-bold text-slate-900 dark:text-zinc-100 cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors underline decoration-emerald-500/30 underline-offset-4 line-clamp-2 sm:line-clamp-none"
@@ -482,7 +628,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                                       <Trash2 size={16} />
                                     </button>
                                   </div>
-                                </div>
+                                 </div>
                               </div>
                             )
                           })
@@ -589,7 +735,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                 </div>
 
                 <div>
-                   <label className="text-xs font-bold text-slate-500 block mb-2 uppercase">Target Personas</label>
+                  <label className="text-xs font-bold text-slate-500 block mb-2 uppercase">Target Personas</label>
                   <div className="flex flex-wrap gap-2 p-3 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-950/50">
                      {['All Personas', ...personas.map(p => p.name)].map((personaName, i) => {
                        const isSelected = formData.targetPersonas.includes(personaName);
@@ -643,7 +789,7 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
                 <button type="button" onClick={() => setIsPhaseModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 p-1">
                   <Plus size={24} className="rotate-45" />
                 </button>
-              </div>
+               </div>
 
               <form onSubmit={handleSavePhase} className="space-y-5">
                 <div>

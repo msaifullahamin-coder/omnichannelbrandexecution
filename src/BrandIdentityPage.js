@@ -6,6 +6,7 @@ import {
   Sparkles, Loader2, FileText, ArrowRight, CheckCircle, Download,
   Save, FolderOpen, Trash2, Link2, Edit3, Compass
 } from 'lucide-react';
+import { supabase } from './supabaseClient'; // 🔗 INI PIPA KONEKSINYA MAS IPUL!
 
 export const BrandIdentityPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -14,9 +15,31 @@ export const BrandIdentityPage = () => {
   const [availablePersonas, setAvailablePersonas] = useState([]);
   const [selectedPersonaId, setSelectedPersonaId] = useState('');
 
+  // ==========================================================
+  // FUNGSI BARU: SEDOT DATA LANGSUNG DARI CLOUD SUPABASE ☁️
+  // ==========================================================
   useEffect(() => {
-    const localBrandData = localStorage.getItem('saas_brand_projects');
-    if (localBrandData) setSavedProjects(JSON.parse(localBrandData));
+    const fetchBrandsFromCloud = async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .order('created_at', { ascending: false }); // Urutkan dari yang paling baru
+        
+      if (error) {
+        console.error("Gagal nyedot data:", error);
+      } else if (data) {
+        // Bongkar paket JSON dari Supabase biar masuk ke tampilan UI
+        const formattedProjects = data.map(row => ({
+          ...row.brand_data,
+          db_id: row.id // Simpan ID rahasia Supabase buat fitur Hapus
+        }));
+        setSavedProjects(formattedProjects);
+      }
+    };
+
+    fetchBrandsFromCloud();
+
+    // Data Persona sementara biarkan pakai local storage (nanti kita migrasi juga)
     const localPersonaData = localStorage.getItem('saas_persona_projects');
     if (localPersonaData) setAvailablePersonas(JSON.parse(localPersonaData));
   }, []);
@@ -58,6 +81,7 @@ export const BrandIdentityPage = () => {
         selectedFiles.forEach((f, i) => formData.append(`file_${i}`, f));
       }
 
+      // Pastikan URL n8n Mas Ipul sudah benar (pakai jalur production /webhook/)
       const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook/api-brand-identity', {
         method: 'POST',
         body: formData
@@ -102,7 +126,10 @@ export const BrandIdentityPage = () => {
     }
   };
 
-  const handleSaveProject = () => {
+  // ==========================================================
+  // FUNGSI BARU: SIMPAN DATA LANGSUNG KE CLOUD SUPABASE ☁️
+  // ==========================================================
+  const handleSaveProject = async () => {
     const nameToSave = customName || selectedName || "Brand Tanpa Nama";
     const newProject = {
       id: Date.now().toString(),
@@ -113,30 +140,69 @@ export const BrandIdentityPage = () => {
       data: brandData,
       linkedPersonaId: selectedPersonaId
     };
-    const updated = [newProject, ...savedProjects];
-    setSavedProjects(updated);
-    localStorage.setItem('saas_brand_projects', JSON.stringify(updated));
-    alert("Mantap! Brand Identity Berhasil Disimpan!");
+
+    const { error } = await supabase
+      .from('brands')
+      .insert([
+        { 
+          project_name: nameToSave, 
+          industry: projectContext.industry || 'General', 
+          brand_data: newProject 
+        }
+      ]);
+
+    if (error) {
+      console.error("Gagal simpan ke Supabase:", error);
+      alert("Gagal menyimpan ke Cloud! Cek console untuk detailnya.");
+    } else {
+      alert("🔥 Mantap! Brand Identity Berhasil Disimpan ke Cloud Supabase! 🔥");
+      window.location.reload(); // Refresh halaman biar data terbarunya otomatis muncul
+    }
   };
 
-  // =========================================================================
-  // FUNGSI BARU: DOWNLOAD CSV SUPER PROMPT
-  // =========================================================================
+  const loadProject = (project) => {
+    setProjectContext(project.context);
+    setSelectedName(project.brandName);
+    setBrandData(project.data);
+    setSelectedPersonaId(project.linkedPersonaId || '');
+    setCurrentStep(4);
+  };
+
+  // ==========================================================
+  // FUNGSI BARU: HAPUS DATA LANGSUNG DARI CLOUD SUPABASE ☁️
+  // ==========================================================
+  const deleteProject = async (project) => {
+    if (window.confirm("Yakin mau hapus project ini secara permanen dari Cloud Database?")) {
+      const { error } = await supabase.from('brands').delete().eq('id', project.db_id);
+      
+      if (!error) {
+        const updated = savedProjects.filter(p => p.id !== project.id);
+        setSavedProjects(updated);
+      } else {
+        alert("Gagal menghapus data dari cloud.");
+      }
+    }
+  };
+
+  const startNewProject = () => {
+    setProjectContext({ industry: '', description: '' });
+    setSelectedName('');
+    setCustomName('');
+    setCurrentStep(1);
+  };
+
   const handleDownloadCSV = () => {
     const brand = customName || selectedName || "Brand_Tanpa_Nama";
     const safeText = (text) => `"${(text || '').replace(/"/g, '""')}"`;
 
     let csvContent = "Kategori,Elemen,Value\n";
-    
     csvContent += `Identitas Utama,Nama Brand,${safeText(brand)}\n`;
-    
     csvContent += `Brand Prism,Physique,${safeText(brandData.prism?.physique)}\n`;
     csvContent += `Brand Prism,Personality,${safeText(brandData.prism?.personality)}\n`;
     csvContent += `Brand Prism,Relationship,${safeText(brandData.prism?.relationship)}\n`;
     csvContent += `Brand Prism,Culture,${safeText(brandData.prism?.culture)}\n`;
     csvContent += `Brand Prism,Reflection,${safeText(brandData.prism?.reflection)}\n`;
     csvContent += `Brand Prism,Self-Image,${safeText(brandData.prism?.selfImage)}\n`;
-
     csvContent += `Logo,Primary,${safeText(brandData.logo?.primary)}\n`;
     csvContent += `Logo,Secondary/Icon,${safeText(brandData.logo?.secondary || brandData.logo?.favicon)}\n`;
 
@@ -147,12 +213,10 @@ export const BrandIdentityPage = () => {
     csvContent += `Tipografi,Heading,${safeText(brandData.typography?.heading?.font + " - " + brandData.typography?.heading?.desc)}\n`;
     csvContent += `Tipografi,Sub-Heading,${safeText(brandData.typography?.subheading?.font + " - " + brandData.typography?.subheading?.desc)}\n`;
     csvContent += `Tipografi,Body,${safeText(brandData.typography?.body?.font + " - " + brandData.typography?.body?.desc)}\n`;
-
     csvContent += `Grafis,Gaya Fotografi,${safeText(brandData.graphics?.photography)}\n`;
     csvContent += `Grafis,Ikonografi,${safeText(brandData.graphics?.iconography)}\n`;
     csvContent += `Grafis,Pola (Pattern),${safeText(brandData.graphics?.pattern)}\n`;
 
-    // BONUS: Auto-Generated Prompt untuk Image Generator
     const colorList = brandData.colors?.map(c => c.hex).join(', ') || '';
     const photoStyle = brandData.graphics?.photography || 'aesthetic lighting';
     
@@ -167,29 +231,6 @@ export const BrandIdentityPage = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const loadProject = (project) => {
-    setProjectContext(project.context);
-    setSelectedName(project.brandName);
-    setBrandData(project.data);
-    setSelectedPersonaId(project.linkedPersonaId || '');
-    setCurrentStep(4);
-  };
-
-  const deleteProject = (id) => {
-    if (window.confirm("Yakin mau hapus project ini?")) {
-      const updated = savedProjects.filter(p => p.id !== id);
-      setSavedProjects(updated);
-      localStorage.setItem('saas_brand_projects', JSON.stringify(updated));
-    }
-  };
-
-  const startNewProject = () => {
-    setProjectContext({ industry: '', description: '' });
-    setSelectedName('');
-    setCustomName('');
-    setCurrentStep(1);
   };
 
   const ReadOnlyField = ({ label, value }) => (
@@ -249,9 +290,9 @@ export const BrandIdentityPage = () => {
                </div>
             </div>
             <div className="bg-slate-50 dark:bg-zinc-900 p-6 rounded-3xl border border-slate-200 text-left">
-              <h4 className="font-bold text-sm mb-4 flex items-center gap-2"><FolderOpen size={18} className="text-amber-500"/> Brand Tersimpan</h4>
+              <h4 className="font-bold text-sm mb-4 flex items-center gap-2"><FolderOpen size={18} className="text-amber-500"/> Brand Tersimpan (Cloud) ☁️</h4>
               <div className="space-y-3">
-                {savedProjects.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Belum ada brand tersimpan.</p>}
+                {savedProjects.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Database masih kosong.</p>}
                 {savedProjects.map(p => (
                   <div key={p.id} className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-slate-100 flex justify-between items-center group shadow-sm">
                     <div>
@@ -260,7 +301,8 @@ export const BrandIdentityPage = () => {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => loadProject(p)} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ArrowRight size={14}/></button>
-                      <button onClick={() => deleteProject(p.id)} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
+                      {/* Fungsi Delete nya sudah pakai objek 'p' biar bisa baca db_id dari Supabase */}
+                      <button onClick={() => deleteProject(p)} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 size={14}/></button>
                     </div>
                   </div>
                 ))}
@@ -349,8 +391,7 @@ export const BrandIdentityPage = () => {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setCurrentStep(3)} className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">Kembali</button>
-                <button onClick={handleSaveProject} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-amber-400 transition-colors"><Save size={16}/> Simpan</button>
-                {/* TOMBOL DOWNLOAD CSV BARU! */}
+                <button onClick={handleSaveProject} className="px-4 py-2.5 bg-amber-500 text-white rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-amber-400 transition-colors"><Save size={16}/> Simpan ke Cloud</button>
                 <button onClick={handleDownloadCSV} className="px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-2 text-sm hover:bg-blue-500 transition-colors shadow-lg"><Download size={16}/> Download Prompts (CSV)</button>
               </div>
             </div>
@@ -365,6 +406,7 @@ export const BrandIdentityPage = () => {
                <div className="bg-white dark:bg-zinc-900 border border-slate-200 p-8 rounded-3xl text-left shadow-sm">
                   <h3 className="font-black mb-6 flex items-center gap-2"><Droplet className="text-rose-500"/> Color Palette</h3>
                   <div className="space-y-4">
+                    {(!brandData.colors || brandData.colors.length === 0) && <p className="text-sm text-slate-400 italic">Menunggu warna dari AI...</p>}
                     {brandData.colors && brandData.colors.map((c, i) => (
                       <div key={i} className="flex gap-4 items-center bg-slate-50 dark:bg-zinc-950 p-3 rounded-2xl border border-slate-100 dark:border-zinc-800">
                         <div className="w-12 h-12 rounded-xl border border-black/10 shadow-inner shrink-0" style={{backgroundColor: c.hex || '#ccc'}}></div>

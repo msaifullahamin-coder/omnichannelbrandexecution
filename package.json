@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@emotion/is-prop-valid": "^1.4.0",
+    "@supabase/supabase-js": "^2.105.4",
     "framer-motion": "latest",
     "lucide-react": "latest",
     "react": "latest",
