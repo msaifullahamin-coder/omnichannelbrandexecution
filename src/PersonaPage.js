@@ -3,23 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Target, Lightbulb, MapPin, Briefcase, 
   Smile, Frown, CheckCircle, ArrowRight, Save, 
-  Download, FolderOpen, Trash2, Database, FileText, Loader2, Compass, UserCheck, Globe 
+  Download, FolderOpen, Trash2, Database, FileText, Loader2, Compass, UserCheck, Globe, Cloud
 } from 'lucide-react';
+// IMPORT MESIN SUPABASE KITA!
+import { supabase } from './supabaseClient';
 
 export const PersonaPage = () => {
   // =========================================================================
-  // 1. STATE UNTUK WIZARD & DATABASE LOKAL
+  // 1. STATE UNTUK WIZARD & DATABASE
   // =========================================================================
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [savedPersonas, setSavedPersonas] = useState([]);
-
-  useEffect(() => {
-    const localData = localStorage.getItem('saas_persona_projects');
-    if (localData) {
-      setSavedPersonas(JSON.parse(localData));
-    }
-  }, []);
 
   // =========================================================================
   // 2. STATE INPUT USER & HASIL AI
@@ -27,33 +22,82 @@ export const PersonaPage = () => {
   const [projectContext, setProjectContext] = useState({ industry: '', productName: '', description: '' });
   const [selectedFiles, setSelectedFiles] = useState([]);
   
-  // STATE BARU: Array untuk menyimpan banyak pilihan (Multi-Select)
+  // Array untuk menyimpan banyak pilihan (Multi-Select)
   const [selectedPersonasIndices, setSelectedPersonasIndices] = useState([]);
-
   const [personaData, setPersonaData] = useState({
     market: { demographic: 'Belum ada data.', geographic: 'Belum ada data.', psychographic: 'Belum ada data.', behavioral: 'Belum ada data.' },
-    personas: [] // Akan diisi 10 persona dari AI
+    personas: [] 
   });
 
   // =========================================================================
-  // 3. FUNGSI DATABASE LOKAL (SAVE, LOAD, DELETE)
+  // 3. FUNGSI DATABASE CLOUD (SUPABASE)
   // =========================================================================
-  const handleSaveProject = () => {
-    const newProject = {
-      id: Date.now().toString(),
-      name: projectContext.productName || projectContext.industry || 'Project Tanpa Nama',
-      date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-      context: projectContext,
-      data: personaData,
-      selectedIndices: selectedPersonasIndices // Simpan array pilihan user
-    };
+  
+  // A. FUNGSI NYEDOT DATA DARI CLOUD (LOAD HISTORY)
+  const fetchHistory = async () => {
+    const { data, error } = await supabase
+      .from('personas')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    const updatedProjects = [newProject, ...savedPersonas];
-    setSavedPersonas(updatedProjects);
-    localStorage.setItem('saas_persona_projects', JSON.stringify(updatedProjects));
-    alert("Target Persona berhasil disimpan di Lobi!");
+    if (error) {
+      console.error("Gagal nyedot history Persona:", error);
+    } else if (data) {
+      // Ubah format Supabase ke format yang dibaca oleh UI React kita
+      const mappedData = data.map(item => ({
+        id: item.id,
+        name: item.project_name,
+        date: new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        context: item.persona_data.context,
+        data: item.persona_data.data,
+        selectedIndices: item.persona_data.selectedIndices || []
+      }));
+      setSavedPersonas(mappedData);
+    }
   };
 
+  // Jalankan penyedot data saat halaman pertama kali dibuka
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  // B. FUNGSI SIMPAN DATA KE CLOUD
+  const handleSaveProject = async () => {
+    try {
+      const projectNameToSave = projectContext.productName || projectContext.industry || 'Project Tanpa Nama';
+
+      // Bungkus semua data paket AI dan Pilihan User ke dalam satu JSON
+      const payloadData = {
+        context: projectContext,
+        data: personaData,
+        selectedIndices: selectedPersonasIndices
+      };
+
+      // Tembak ke Supabase!
+      const { data, error } = await supabase
+        .from('personas')
+        .insert([
+          {
+            project_name: projectNameToSave,
+            industry: projectContext.industry || 'Tanpa Kategori',
+            persona_data: payloadData
+          }
+        ]);
+
+      if (error) {
+        console.error("Error Supabase:", error);
+        alert("Gagal menyimpan ke Cloud! Cek console untuk detailnya.");
+      } else {
+        alert("🔥 Mantap! Data Persona Berhasil Disimpan ke Cloud Supabase! 🔥");
+        fetchHistory(); // Refresh daftar histori
+      }
+    } catch (err) {
+      console.error("Error Catch:", err);
+      alert("Terjadi kesalahan sistem saat menyimpan.");
+    }
+  };
+
+  // C. FUNGSI LOAD DATA KE LAYAR UTAMA
   const loadProject = (project) => {
     setProjectContext(project.context);
     setPersonaData(project.data);
@@ -61,11 +105,20 @@ export const PersonaPage = () => {
     setCurrentStep(4); 
   };
 
-  const deleteProject = (id) => {
-    if (window.confirm("Yakin ingin menghapus data persona ini?")) {
-      const updatedProjects = savedPersonas.filter(p => p.id !== id);
-      setSavedPersonas(updatedProjects);
-      localStorage.setItem('saas_persona_projects', JSON.stringify(updatedProjects));
+  // D. FUNGSI HAPUS DATA DARI CLOUD
+  const deleteProject = async (id) => {
+    if (window.confirm("Yakin ingin menghapus data persona ini dari Cloud?")) {
+      const { error } = await supabase
+        .from('personas')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("Gagal menghapus data dari Cloud!");
+        console.error(error);
+      } else {
+        fetchHistory(); // Refresh daftar histori
+      }
     }
   };
 
@@ -77,7 +130,7 @@ export const PersonaPage = () => {
   };
 
   // =========================================================================
-  // 4. FUNGSI NAVIGASI WIZARD & EXPORT CSV
+  // 4. FUNGSI MANGGIL N8N (AI) & EXPORT CSV
   // =========================================================================
   const handleSubmitStep1 = async () => {
     if (!projectContext.industry || !projectContext.description) {
@@ -92,7 +145,7 @@ export const PersonaPage = () => {
       formData.append('description', projectContext.description);
       selectedFiles.forEach((file, index) => { formData.append(`file_${index}`, file); });
 
-      // MAS IPUL: PASTIKAN URL WEBHOOK N8N SUDAH BENAR DI SINI!
+      // N8N WEBHOOK URL MAS IPUL
       const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook/api-persona', {
         method: 'POST',
         body: formData
@@ -114,10 +167,8 @@ export const PersonaPage = () => {
   // Fungsi Toggle untuk memilih/membatalkan pilihan Persona
   const togglePersonaSelection = (index) => {
     if (selectedPersonasIndices.includes(index)) {
-      // Jika sudah terpilih, hapus dari array
       setSelectedPersonasIndices(selectedPersonasIndices.filter(i => i !== index));
     } else {
-      // Jika belum terpilih, tambahkan ke array
       setSelectedPersonasIndices([...selectedPersonasIndices, index]);
     }
   };
@@ -133,7 +184,6 @@ export const PersonaPage = () => {
       ["2. Market", "Segmentasi", "Perilaku (Behavioral)", personaData.market?.behavioral || "-"]
     ];
 
-    // Looping semua persona yang DIPILIH saja untuk dimasukkan ke Excel
     selectedPersonasIndices.forEach((index, i) => {
       const p = personaData.personas[index];
       rows.push(["3. Persona Terpilih", `Persona ${i+1}`, "Tipe / Peran", p.tipe || "-"]);
@@ -248,10 +298,10 @@ export const PersonaPage = () => {
             </div>
 
             <div className="bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 p-6 rounded-3xl h-fit">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white"><FolderOpen className="text-amber-500" size={20}/> Histori Riset</h3>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white"><FolderOpen className="text-amber-500" size={20}/> Histori Riset Cloud</h3>
               {savedPersonas.length === 0 ? (
                 <div className="text-center py-10 border-2 border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl">
-                  <p className="text-sm text-slate-400">Belum ada riset pasar yang disimpan.</p>
+                  <p className="text-sm text-slate-400">Belum ada riset pasar di Cloud.</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
@@ -261,7 +311,7 @@ export const PersonaPage = () => {
                         <h4 className="font-bold text-slate-800 dark:text-white text-sm line-clamp-1">{proj.name}</h4>
                         <button onClick={() => deleteProject(proj.id)} className="text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={14}/></button>
                       </div>
-                      <p className="text-xs text-slate-500 mb-3">{proj.date} • {proj.context.industry}</p>
+                      <p className="text-xs text-slate-500 mb-3">{proj.date} • {proj.context?.industry}</p>
                       <button onClick={() => loadProject(proj)} className="w-full py-2 bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 text-xs font-bold rounded-lg group-hover:bg-rose-100 transition-colors">Buka Riset</button>
                     </div>
                   ))}
@@ -276,7 +326,7 @@ export const PersonaPage = () => {
         ========================================== */}
         {currentStep === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
-             <div className="bg-white dark:bg-zinc-900 p-8 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 p-8 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100 dark:border-zinc-800">
                   <div>
                     <h3 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2"><Globe className="text-blue-500"/> Market Segmentation</h3>
@@ -312,7 +362,6 @@ export const PersonaPage = () => {
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setCurrentStep(2)} className="px-6 py-3 font-bold text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 dark:bg-zinc-800 dark:text-zinc-300">Kembali</button>
-                    {/* Tombol Lanjut dinonaktifkan kalau belum ada yang dipilih */}
                     <button 
                       onClick={() => setCurrentStep(4)} 
                       disabled={selectedPersonasIndices.length === 0}
@@ -323,7 +372,6 @@ export const PersonaPage = () => {
                   </div>
                 </div>
 
-                {/* Grid Pilihan Persona (Scrollable horizontal kalau terlalu banyak) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[800px] overflow-y-auto p-2 custom-scrollbar">
                   {personaData.personas?.map((persona, index) => {
                     const isSelected = selectedPersonasIndices.includes(index);
@@ -333,7 +381,6 @@ export const PersonaPage = () => {
                         onClick={() => togglePersonaSelection(index)}
                         className={`relative cursor-pointer transition-all duration-300 rounded-3xl p-6 border-2 flex flex-col h-full ${isSelected ? 'border-rose-500 bg-rose-50 dark:bg-rose-900/10 shadow-md scale-[1.02]' : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-rose-300'}`}
                       >
-                        {/* Badge Terpilih */}
                         {isSelected && (
                           <div className="absolute -top-3 -right-3 bg-rose-500 text-white p-1.5 rounded-full shadow-lg z-10">
                             <UserCheck size={20} />
@@ -363,9 +410,9 @@ export const PersonaPage = () => {
                           <div>
                             <h5 className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 mb-2"><Frown size={14}/> Pain Points</h5>
                             <ul className="space-y-1">
-                              {persona.frustrations?.map((frust, idx) => (
+                               {persona.frustrations?.map((frust, idx) => (
                                 <li key={idx} className="text-slate-600 dark:text-zinc-400 text-xs flex items-start gap-1.5"><div className="w-1 h-1 bg-rose-500 rounded-full mt-1.5 shrink-0"></div> <span className="line-clamp-2">{frust}</span></li>
-                              ))}
+                               ))}
                             </ul>
                           </div>
                         </div>
@@ -397,7 +444,7 @@ export const PersonaPage = () => {
               </div>
               <div className="flex flex-wrap gap-3">
                 <button onClick={handleSaveProject} className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-amber-500 text-white rounded-lg shadow-sm hover:bg-amber-400 transition-all">
-                  <Save size={18} /> Simpan Laporan
+                  <Cloud size={18} /> Simpan ke Cloud
                 </button>
                 <button onClick={downloadCSV} className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-rose-600 text-white rounded-lg shadow-sm hover:bg-rose-500 transition-all">
                   <Download size={18} /> Export CSV
@@ -406,14 +453,13 @@ export const PersonaPage = () => {
                   Riset Baru
                 </button>
               </div>
-            </div>
+             </div>
 
             {/* Render Positioning Block Untuk Setiap Persona Yang Dipilih */}
             {selectedPersonasIndices.map((index, i) => {
               const persona = personaData.personas[index];
               return (
                 <div key={index} className="bg-white dark:bg-zinc-900 p-8 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm relative overflow-hidden">
-                  {/* Label Urutan/Tipe di pojok */}
                   <div className="absolute top-0 right-0 bg-slate-100 dark:bg-zinc-800 px-4 py-2 rounded-bl-2xl font-bold text-xs text-slate-500 tracking-wider">
                     Pilihan {i + 1} : {persona.tipe}
                   </div>
@@ -421,28 +467,28 @@ export const PersonaPage = () => {
                   <h3 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2 mb-2">
                     <Compass className="text-indigo-500"/> Value & Positioning
                   </h3>
-                  <p className="text-slate-500 mb-8 border-b border-slate-100 dark:border-zinc-800 pb-4">Target: <strong className="text-rose-500">{persona.name}</strong></p>
+                   <p className="text-slate-500 mb-8 border-b border-slate-100 dark:border-zinc-800 pb-4">Target: <strong className="text-rose-500">{persona.name}</strong></p>
                   
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-rose-50 dark:bg-rose-950/30 p-6 rounded-2xl border border-rose-100 dark:border-rose-900/50">
+                       <div className="bg-rose-50 dark:bg-rose-950/30 p-6 rounded-2xl border border-rose-100 dark:border-rose-900/50">
                         <h4 className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-3">The Problem (Inti Masalah)</h4>
                         <p className="text-slate-700 dark:text-zinc-300 text-sm leading-relaxed">{persona.positioning?.problem}</p>
                       </div>
-                      <div className="bg-emerald-50 dark:bg-emerald-950/30 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-900/50">
+                       <div className="bg-emerald-50 dark:bg-emerald-950/30 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-900/50">
                         <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-3">Our Solution (Solusi Kita)</h4>
                         <p className="text-slate-700 dark:text-zinc-300 text-sm leading-relaxed">{persona.positioning?.solution}</p>
-                      </div>
+                       </div>
                     </div>
 
                     <div className="bg-blue-50 dark:bg-blue-950/30 p-6 rounded-2xl border border-blue-100 dark:border-blue-900/50">
                       <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Value Proposition</h4>
-                      <p className="text-slate-800 dark:text-zinc-200 font-medium leading-relaxed">{persona.positioning?.valueProp}</p>
+                       <p className="text-slate-800 dark:text-zinc-200 font-medium leading-relaxed">{persona.positioning?.valueProp}</p>
                     </div>
 
                     <div className="bg-slate-900 dark:bg-black p-8 rounded-2xl border border-slate-800 text-center relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-4 opacity-10"><Compass size={100} className="text-white"/></div>
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 relative z-10">Brand Positioning Statement</h4>
+                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 relative z-10">Brand Positioning Statement</h4>
                       <p className="text-xl md:text-2xl font-black text-white leading-snug relative z-10">
                         "{persona.positioning?.statement}"
                       </p>
