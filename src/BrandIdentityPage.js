@@ -58,7 +58,7 @@ export const BrandIdentityPage = () => {
         selectedFiles.forEach((f, i) => formData.append(`file_${i}`, f));
       }
 
-      const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook-test/api-brand-identity', {
+      const response = await fetch('https://n8n-ovmloglvzrcc.jkt4.sumopod.my.id/webhook/api-brand-identity', {
         method: 'POST',
         body: formData
       });
