@@ -276,8 +276,12 @@ export const RoadmapPage = ({ users, tasks, setTasks, highlightPhaseName, setHig
     <div className="space-y-6 max-w-5xl mx-auto pb-10 relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Project Master Roadmap</h2>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">Aqshor Mushaf Tajwid Triple Kode Launch Plan</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Project Master Roadmap</h2>
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">
+            {selectedBrandId 
+              ? `${availableBrands.find(b => b.id === selectedBrandId)?.name || 'Project'} Launch Plan` 
+              : 'Strategic Execution Plan'}
+          </p>
         </div>
         <button onClick={openAddPhaseModal} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto">
           <Plus size={16} /> Add Milestone
